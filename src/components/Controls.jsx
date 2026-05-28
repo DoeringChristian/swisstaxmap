@@ -282,62 +282,119 @@ export default function Controls({
           </button>
           {showAdvanced && (
             <div className="deductions-grid">
+              <div className="ded-section">Pension / Vorsorge</div>
               <NumberField
                 label="Pillar 2 (BVG) contribution"
                 value={state.pillar2}
                 onChange={(v) => set({ pillar2: v })}
-                hint="Annual employee BVG contribution (typ. 5–10% of gross)"
+                hint="Annual employee BVG contribution (typ. 5–10% of gross, age-dependent)"
                 step={500}
               />
+              {state.married && (
+                <NumberField
+                  label="Partner Pillar 2 (BVG)"
+                  value={state.partnerPillar2}
+                  onChange={(v) => set({ partnerPillar2: v })}
+                  hint="Partner's annual BVG contribution"
+                  step={500}
+                />
+              )}
               <NumberField
                 label="Pillar 3a contribution"
                 value={state.pillar3a}
                 onChange={(v) => set({ pillar3a: v })}
-                hint={`Max 2026: CHF 7'258 with BVG`}
+                hint="Max 2026: CHF 7'258 with BVG, CHF 36'288 without (self-employed)"
                 step={100}
               />
+
+              <div className="ded-section">Professional</div>
               <NumberField
                 label="Travel expenses (Fahrkosten)"
                 value={state.travelExpenses}
                 onChange={(v) => set({ travelExpenses: v })}
-                hint="Annual commute costs"
+                hint={"Annual commute costs — fed cap 3'300, canton caps vary"}
                 step={100}
               />
               <NumberField
                 label="Meal costs (Verpflegung)"
                 value={state.mealCosts}
                 onChange={(v) => set({ mealCosts: v })}
-                hint="Annual workplace meal costs"
+                hint="Annual workplace meal expenses"
                 step={100}
               />
               <NumberField
-                label="Rent (Mietzins)"
-                value={state.rent}
-                onChange={(v) => set({ rent: v })}
-                hint="Annual rent — applied via Mietzinsabzug (VD, ZG, …)"
-                step={500}
+                label="Side-income expenses"
+                value={state.sideExpenses}
+                onChange={(v) => set({ sideExpenses: v })}
+                hint="Berufsauslagen Nebenerwerb (min 800)"
+                step={100}
+              />
+
+              <div className="ded-section">Insurance &amp; savings</div>
+              <NumberField
+                label="Insurance premiums (per adult)"
+                value={state.insurance}
+                onChange={(v) => set({ insurance: v })}
+                hint="Krankenkasse + Lebensversicherung. Default CHF 4'560"
+                step={100}
               />
               <NumberField
                 label="Savings interest"
                 value={state.savingsInterest}
                 onChange={(v) => set({ savingsInterest: v })}
-                hint="Annual savings interest income (Sparzinsen-Abzug, VD …)"
+                hint="Annual interest from savings accounts (VD has a separate Sparzinsen-Abzug)"
                 step={100}
               />
+
+              <div className="ded-section">Housing</div>
+              <NumberField
+                label="Rent (Mietzins)"
+                value={state.rent}
+                onChange={(v) => set({ rent: v })}
+                hint="Annual rent — Mietzinsabzug applies in VD, ZG"
+                step={500}
+              />
+              <NumberField
+                label="Mortgage interest (Schuldzinsen)"
+                value={state.debtInterest}
+                onChange={(v) => set({ debtInterest: v })}
+                hint="Cap CHF 50'000 (only counted up to investment-income amount in practice)"
+                step={500}
+              />
+              <NumberField
+                label="Real-estate maintenance"
+                value={state.maintenanceCostsRealEstate}
+                onChange={(v) => set({ maintenanceCostsRealEstate: v })}
+                hint="Liegenschaftsunterhalt — alternative to Pauschal (10–20% Eigenmietwert)"
+                step={500}
+              />
+
               {state.children > 0 && (
-                <NumberField
-                  label="Childcare (Fremdbetreuung)"
-                  value={state.childcareCosts}
-                  onChange={(v) => set({ childcareCosts: v })}
-                  hint="Total external childcare expenses"
-                  step={500}
-                />
+                <>
+                  <div className="ded-section">Children</div>
+                  <NumberField
+                    label="Insurance per child"
+                    value={state.insuranceKids}
+                    onChange={(v) => set({ insuranceKids: v })}
+                    hint="Versicherungsprämien per child. Default CHF 1'400"
+                    step={100}
+                  />
+                  <NumberField
+                    label="Childcare costs"
+                    value={state.childcareCosts}
+                    onChange={(v) => set({ childcareCosts: v })}
+                    hint="Total external childcare (Fremdbetreuung) expenses"
+                    step={500}
+                  />
+                </>
               )}
+
+              <div className="ded-section">Other</div>
               <NumberField
                 label="Other deductions"
                 value={state.otherDeductions}
                 onChange={(v) => set({ otherDeductions: v })}
-                hint="Schuldzinsen, Liegenschaftsunterhalt, etc."
+                hint="Catch-all for anything not captured above"
                 step={500}
               />
             </div>

@@ -285,6 +285,12 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
 .num-field { display: flex; flex-direction: column; gap: 4px; }
 .num-field > label { font-size: 12px; color: var(--text-dim); }
 .num-field input { width: 100%; }
+.ded-section {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px;
+  color: var(--accent-soft); font-weight: 600;
+  margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border);
+}
+.ded-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 
 .ym { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 .ym .amount { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -483,5 +489,8 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
   border-top: 1px solid var(--border);
   font-size: 12px; color: var(--text-dim); line-height: 1.7;
 }
+.app-footer p { margin: 0 0 10px; }
+.app-footer p:last-child { margin: 0; }
+.app-footer strong { color: var(--text); }
 .app-footer a { color: var(--accent-soft); text-decoration: none; }
 .app-footer a:hover { text-decoration: underline; }

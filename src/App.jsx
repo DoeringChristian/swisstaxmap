@@ -22,15 +22,20 @@ export default function App() {
     children: 0,
     confession: 'none',
     // Deduction inputs (gross mode)
-    pillar2: 0,                   // BVG / Pillar 2 contribution — user-entered
+    pillar2: 0,                   // BVG / Pillar 2 contribution
     partnerPillar2: 0,
     pillar3a: 0,                  // Pillar 3a
-    travelExpenses: 0,
-    mealCosts: 0,
-    savingsInterest: 0,           // for cantons with Sparzinsen-Abzug (VD…)
-    rent: 0,                      // for cantons with Mietzinsabzug Pauschal (VD…)
-    childcareCosts: 0,
-    otherDeductions: 0,
+    travelExpenses: 0,            // Fahrkosten (commute)
+    mealCosts: 0,                 // Verpflegungskosten
+    sideExpenses: 0,              // Berufsauslagen Nebenerwerb
+    insurance: 4560,              // Versicherungsprämien (per adult)
+    insuranceKids: 1400,          // Versicherungsprämien per child
+    savingsInterest: 0,           // Sparzinsen (VD allows separately)
+    rent: 0,                      // Mietzinsabzug (VD, ZG)
+    childcareCosts: 0,            // Fremdbetreuungskosten
+    debtInterest: 0,              // Schuldzinsen (mortgage etc.)
+    maintenanceCostsRealEstate: 0, // Liegenschaftsunterhalt
+    otherDeductions: 0,           // Übrige Abzüge
   });
   const [selectedBfsId, setSelectedBfsId] = useState(DEFAULT_BFS);
   const [comparedBfsIds, setComparedBfsIds] = useState([]);
@@ -195,12 +200,18 @@ export default function App() {
 
       <footer className="app-footer">
         <p>
-          Tariffs, multipliers and deductions sourced from{' '}
+          <strong>Verify against the official source:</strong>{' '}
+          <a href="https://swisstaxcalculator.estv.admin.ch" target="_blank" rel="noreferrer">
+            swisstaxcalculator.estv.admin.ch
+          </a>
+          {' '}— the Federal Tax Administration's own calculator, with the same underlying ESTV data
+          this app uses. Enter the same gross/deduction figures there for a binding cross-check.
+        </p>
+        <p>
+          Tariffs, multipliers and deduction tables sourced from{' '}
           <a href="https://github.com/devbrains-com/swisstaxcalculator" target="_blank" rel="noreferrer">devbrains-com/swisstaxcalculator</a>{' '}
-          (parsed from <a href="https://swisstaxcalculator.estv.admin.ch" target="_blank" rel="noreferrer">ESTV</a>, tax year {data.year}).
+          (parsed from ESTV, tax year {data.year}).
           Topojson from <a href="https://github.com/interactivethings/swiss-maps" target="_blank" rel="noreferrer">interactivethings/swiss-maps</a>.
-          This estimate uses the full ESTV deduction engine — see Breakdown for the exact deductions applied.
-          For binding figures consult the <a href="https://swisstaxcalculator.estv.admin.ch" target="_blank" rel="noreferrer">official cantonal calculator</a>.
         </p>
       </footer>
     </div>
