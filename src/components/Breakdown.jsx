@@ -91,8 +91,8 @@ export default function Breakdown({ result, marginal, commune }) {
       {incomeMode === 'gross' && (
         <>
           <div className="divider" />
-          <Row color="#64748b" label="AHV / IV / EO + ALV + NBU"
-               value={socialContributions} sub="Mandatory social contributions" />
+          <Row color="#64748b" label="AHV / IV / EO + ALV"
+               value={socialContributions} sub="Mandatory social contributions (≈ 6.4%)" />
           {bvg > 0 && (
             <Row color="#94a3b8" label="Pillar 2 (BVG)" value={bvg}
                  sub="Employee contribution" />

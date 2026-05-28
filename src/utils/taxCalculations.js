@@ -10,11 +10,12 @@ import { grossToTaxable, MAX_NBU_ALV } from './deductions.js';
 
 export { MAX_NBU_ALV };
 
-// AHV+IV+EO + ALV + NBU shown to the user as "social contributions".
+// AHV+IV+EO + ALV displayed as "social contributions".
+// (NBU is excluded — see comment in deductions.js calcGrossToNet.)
 export function socialContribDisplay(gross) {
   if (gross <= 0) return 0;
   const cap = Math.min(gross, MAX_NBU_ALV);
-  return gross * 0.053 + cap * 0.011 + cap * 0.004;
+  return gross * 0.053 + cap * 0.011;
 }
 
 // ---------- splitting helper ----------

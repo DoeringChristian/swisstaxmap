@@ -11,15 +11,21 @@
 
 export const MAX_NBU_ALV = 148200; // BVG/ALV/NBU contribution cap (2026)
 
+// Gross → net for income-tax purposes.
+//
+// NOTE: NBU (Nichtberufsunfall-Versicherung) is intentionally NOT subtracted.
+// Although it is a real payroll deduction, its rate depends on the employer's
+// accident-insurance plan and is not part of any canonical Swiss tax
+// calculation — ESTV / swisstaxmap.ch do not include it. Including it would
+// give a too-low taxable income by ~CHF 200 at 50k gross.
 export function calcGrossToNet({ gross, pkDeduction = 0 }) {
   if (gross <= 0) return { net: 0, ahvIvEo: 0, alv: 0, nbu: 0, pk: 0 };
   const cap = Math.min(gross, MAX_NBU_ALV);
   const ahvIvEo = Math.round(gross * 0.053);
   const alv = Math.round(cap * 0.011);
-  const nbu = Math.round(cap * 0.004);
   const pk  = Math.max(0, Math.round(pkDeduction));
-  const net = gross - ahvIvEo - alv - nbu - pk;
-  return { net, ahvIvEo, alv, nbu, pk };
+  const net = gross - ahvIvEo - alv - pk;
+  return { net, ahvIvEo, alv, nbu: 0, pk };
 }
 
 function calcByFormat(item, amount) {
