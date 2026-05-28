@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { feature } from 'topojson-client';
 import { MapContainer, TileLayer, GeoJSON, useMap, Pane } from 'react-leaflet';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { scaleSequential } from 'd3-scale';
 import { interpolateRdYlGn } from 'd3-scale-chromatic';
@@ -14,31 +13,41 @@ const CH_BOUNDS = [[45.8, 5.9], [47.85, 10.55]];
 const STYLE_CANTON = { color: '#1f2937', weight: 1.4, fill: false, opacity: 0.85 };
 const STYLE_LAKES  = { fillColor: '#0ea5e9', fillOpacity: 0.15, color: '#0284c7', weight: 0.6 };
 
-// Style helper that returns the leaflet style options for a commune feature.
-function styleFor({ rate, colorScale, isSel, inCompare }) {
+// Style for a commune in EFFECTIVE-RATE view mode.
+function styleEffective({ rate, colorScale, isSel, inCompare }) {
   const fillColor = rate == null ? '#94a3b8' : colorScale(rate);
   return {
-    fillColor,
-    fillOpacity: 0.62,
+    fillColor, fillOpacity: 0.62,
     color: isSel ? '#facc15' : inCompare ? '#22d3ee' : '#0b0f17',
     weight: isSel ? 2.2 : inCompare ? 1.6 : 0.4,
     opacity: isSel ? 1 : inCompare ? 0.95 : 0.6,
   };
 }
 
-// Inner component that has access to the leaflet map instance via useMap.
+// Style for a commune in AT-SOURCE-DELTA view mode.
+//  delta = commune.co - cantonAvgCommuneRate     (positive = pays more than source)
+//  scale is symmetric (green = below avg, red = above)
+function styleSourceDelta({ delta, scale, isSel, inCompare }) {
+  const fillColor = delta == null ? '#94a3b8' : scale(delta);
+  return {
+    fillColor, fillOpacity: 0.62,
+    color: isSel ? '#facc15' : inCompare ? '#22d3ee' : '#0b0f17',
+    weight: isSel ? 2.2 : inCompare ? 1.6 : 0.4,
+    opacity: isSel ? 1 : inCompare ? 0.95 : 0.6,
+  };
+}
+
+// Inner Leaflet component (needs to be inside MapContainer to use useMap).
 function MapBody({
-  data, params, selectedBfsId, onSelect, comparedBfsIds, onHover,
+  data, params, viewMode, selectedBfsId, comparedBfsIds,
+  setHover, onSelect,
 }) {
   const map = useMap();
   const muniLayerRef = useRef(null);
-  const cantonLayerRef = useRef(null);
-  const lakesLayerRef = useRef(null);
 
   const { communes, cantons, federal } = data;
   const deductionsData = data.deductions;
 
-  // GeoJSON conversion (once).
   const muniGeoJSON = useMemo(
     () => feature(data.topo, data.topo.objects.municipalities),
     [data.topo],
@@ -48,32 +57,29 @@ function MapBody({
     [data.topo],
   );
   const lakesGeoJSON = useMemo(
-    () => data.topo.objects.lakes
-      ? feature(data.topo, data.topo.objects.lakes)
-      : null,
+    () => data.topo.objects.lakes ? feature(data.topo, data.topo.objects.lakes) : null,
     [data.topo],
   );
 
-  // Compute effective tax rate per commune.
+  // Effective rate per commune.
   const rateByBfs = useMemo(() => {
     const out = new Map();
     for (const bfsId of Object.keys(communes)) {
       const c = communes[bfsId];
       const cantonTariff = cantons[c.c];
       if (!cantonTariff) continue;
-      const rate = fastEffectiveRate({
-        ...params,
-        commune: c, cantonTariff, federal, deductionsData,
+      const r = fastEffectiveRate({
+        ...params, commune: c, cantonTariff, federal, deductionsData,
       });
-      if (rate != null) out.set(+bfsId, rate);
+      if (r != null) out.set(+bfsId, r);
     }
     return out;
   }, [communes, cantons, federal, deductionsData, params]);
 
-  // Color scale auto-calibrated to the 2nd–98th percentile of current rates.
-  const colorScale = useMemo(() => {
+  // Auto-calibrated rate color scale (for effective mode).
+  const rateScale = useMemo(() => {
     const vals = [...rateByBfs.values()].filter(v => v > 0).sort((a, b) => a - b);
-    if (vals.length === 0) return Object.assign(() => '#333', { lo: 0, hi: 0 });
+    if (!vals.length) return Object.assign(() => '#333', { lo: 0, hi: 0 });
     const lo = vals[Math.floor(vals.length * 0.02)];
     const hi = vals[Math.floor(vals.length * 0.98)];
     const scale = scaleSequential(t => interpolateRdYlGn(1 - t)).domain([lo, hi]);
@@ -81,76 +87,101 @@ function MapBody({
     return scale;
   }, [rateByBfs]);
 
+  // At-source-delta: per-canton avg commune multiplier; delta per commune.
+  const sourceDelta = useMemo(() => {
+    const byCanton = {};
+    for (const bfsId of Object.keys(communes)) {
+      const c = communes[bfsId];
+      (byCanton[c.c] ||= []).push(c.co);
+    }
+    const avgByCanton = {};
+    for (const k of Object.keys(byCanton)) {
+      const arr = byCanton[k];
+      avgByCanton[k] = arr.reduce((s, x) => s + x, 0) / arr.length;
+    }
+    const out = new Map();
+    for (const bfsId of Object.keys(communes)) {
+      const c = communes[bfsId];
+      out.set(+bfsId, c.co - avgByCanton[c.c]);
+    }
+    return { avgByCanton, delta: out };
+  }, [communes]);
+
+  const deltaScale = useMemo(() => {
+    const vals = [...sourceDelta.delta.values()].filter(Number.isFinite).sort((a, b) => a - b);
+    if (!vals.length) return Object.assign(() => '#333', { lo: 0, hi: 0 });
+    // Symmetric domain around 0
+    const lo = vals[Math.floor(vals.length * 0.02)];
+    const hi = vals[Math.floor(vals.length * 0.98)];
+    const m = Math.max(Math.abs(lo), Math.abs(hi));
+    // Green for negative (cheaper than source), red for positive.
+    const scale = scaleSequential((t) => interpolateRdYlGn(1 - t)).domain([-m, m]);
+    scale.lo = -m; scale.hi = m;
+    return scale;
+  }, [sourceDelta]);
+
   const compareSet = useMemo(() => new Set(comparedBfsIds), [comparedBfsIds]);
 
-  // Stable refs for current state used by the style function so the function
-  // identity stays the same (react-leaflet calls resetStyle on prop change —
-  // a fresh closure each render would wipe our colors back to grey).
-  const styleStateRef = useRef({ rateByBfs, colorScale, selectedBfsId, compareSet });
-  useEffect(() => {
-    styleStateRef.current = { rateByBfs, colorScale, selectedBfsId, compareSet };
-  });
+  // Stable refs for styling + handlers (so listeners attached in onEachFeature
+  // always see current state without re-binding).
+  const styleStateRef = useRef({});
+  styleStateRef.current = {
+    rateByBfs, rateScale, sourceDelta, deltaScale,
+    selectedBfsId, compareSet, viewMode,
+  };
+  const handlersRef = useRef({});
+  handlersRef.current = { setHover, onSelect, communes, rateByBfs, sourceDelta };
 
-  // Stable style function used as the initial `style` prop — identity never
-  // changes, so react-leaflet never wipes our colors.
   const styleMuni = useCallback((feature) => {
-    const { rateByBfs, colorScale, selectedBfsId, compareSet } = styleStateRef.current;
+    const { rateByBfs, rateScale, sourceDelta, deltaScale,
+            selectedBfsId, compareSet, viewMode } = styleStateRef.current;
     const bfsId = feature.id;
-    return styleFor({
-      rate: rateByBfs.get(bfsId),
-      colorScale,
-      isSel: bfsId === selectedBfsId,
-      inCompare: compareSet.has(bfsId),
+    const isSel = bfsId === selectedBfsId;
+    const inCompare = compareSet.has(bfsId);
+    if (viewMode === 'source-delta') {
+      return styleSourceDelta({
+        delta: sourceDelta.delta.get(bfsId), scale: deltaScale, isSel, inCompare,
+      });
+    }
+    return styleEffective({
+      rate: rateByBfs.get(bfsId), colorScale: rateScale, isSel, inCompare,
     });
   }, []);
 
-  // Imperatively restyle commune features when rates/selection/compare change.
+  // Imperatively restyle when params or selection change.
   useEffect(() => {
     const layer = muniLayerRef.current;
     if (!layer) return;
+    const { rateByBfs, rateScale, sourceDelta, deltaScale,
+            selectedBfsId, compareSet, viewMode } = styleStateRef.current;
     layer.eachLayer((sub) => {
       const bfsId = sub.feature?.id;
-      sub.setStyle(styleFor({
-        rate: rateByBfs.get(bfsId),
-        colorScale,
-        isSel: bfsId === selectedBfsId,
-        inCompare: compareSet.has(bfsId),
-      }));
+      const isSel = bfsId === selectedBfsId;
+      const inCompare = compareSet.has(bfsId);
+      sub.setStyle(viewMode === 'source-delta'
+        ? styleSourceDelta({ delta: sourceDelta.delta.get(bfsId), scale: deltaScale, isSel, inCompare })
+        : styleEffective({ rate: rateByBfs.get(bfsId), colorScale: rateScale, isSel, inCompare }));
     });
-  }, [rateByBfs, colorScale, selectedBfsId, compareSet]);
+  }, [rateByBfs, rateScale, sourceDelta, deltaScale, selectedBfsId, compareSet, viewMode]);
 
-  // Stable refs to current callbacks, so feature listeners (bound once) see
-  // the latest props without rebinding.
-  const handlersRef = useRef({ onSelect, onHover, communes, rateByBfs });
-  useEffect(() => {
-    handlersRef.current = { onSelect, onHover, communes, rateByBfs };
-  });
-
-  // Bind event listeners to each feature on first render.
-  const onEachMuni = (feature, layer) => {
+  // Bind events once. `bringToFront` removed — it's not needed in canvas mode
+  // and on some Leaflet versions in canvas it noops/breaks the hover.
+  const onEachMuni = (f, layer) => {
     layer.on({
-      mouseover: (e) => {
-        const r = handlersRef.current.rateByBfs.get(feature.id) ?? null;
-        handlersRef.current.onHover({
-          bfsId: feature.id,
-          commune: handlersRef.current.communes[feature.id],
-          rate: r,
-          point: e.containerPoint,
-        });
-        e.target.bringToFront();
+      mouseover: () => {
+        handlersRef.current.setHover({ bfsId: f.id, kind: 'hover' });
       },
-      mousemove: (e) => {
-        handlersRef.current.onHover((h) => h && ({ ...h, point: e.containerPoint }));
+      mouseout: () => {
+        handlersRef.current.setHover(null);
       },
-      mouseout: () => handlersRef.current.onHover(null),
-      click: () => handlersRef.current.onSelect(feature.id),
+      click: () => {
+        handlersRef.current.onSelect(f.id);
+      },
     });
   };
 
-  // Initial fit to Switzerland bounds.
-  useEffect(() => {
-    map.fitBounds(CH_BOUNDS, { padding: [4, 4] });
-  }, [map]);
+  // Initial fit.
+  useEffect(() => { map.fitBounds(CH_BOUNDS, { padding: [4, 4] }); }, [map]);
 
   return (
     <>
@@ -169,23 +200,11 @@ function MapBody({
         />
       </Pane>
       <Pane name="cantons" style={{ zIndex: 415, pointerEvents: 'none' }}>
-        <GeoJSON
-          ref={cantonLayerRef}
-          data={cantonGeoJSON}
-          pane="cantons"
-          interactive={false}
-          style={STYLE_CANTON}
-        />
+        <GeoJSON data={cantonGeoJSON} pane="cantons" interactive={false} style={STYLE_CANTON} />
       </Pane>
       {lakesGeoJSON && (
         <Pane name="lakes" style={{ zIndex: 412, pointerEvents: 'none' }}>
-          <GeoJSON
-            ref={lakesLayerRef}
-            data={lakesGeoJSON}
-            pane="lakes"
-            interactive={false}
-            style={STYLE_LAKES}
-          />
+          <GeoJSON data={lakesGeoJSON} pane="lakes" interactive={false} style={STYLE_LAKES} />
         </Pane>
       )}
     </>
@@ -194,56 +213,93 @@ function MapBody({
 
 export default function SwissMap({
   data, params, selectedBfsId, onSelect, comparedBfsIds = [],
+  viewMode = 'effective', setViewMode,
 }) {
   const [hover, setHover] = useState(null);
 
-  // colorScale for the legend
-  const legend = useMemo(() => {
-    if (!data) return null;
-    const out = [];
+  // Derived per-commune rates/deltas for tooltip & legend.
+  const { rateByBfs, rateLo, rateHi, deltaByBfs, deltaLo, deltaHi, avgByCanton } = useMemo(() => {
+    if (!data) return {};
+    const rate = new Map();
     for (const bfsId of Object.keys(data.communes)) {
       const c = data.communes[bfsId];
       const cantonTariff = data.cantons[c.c];
       if (!cantonTariff) continue;
       const r = fastEffectiveRate({
-        ...params,
-        commune: c, cantonTariff, federal: data.federal, deductionsData: data.deductions,
+        ...params, commune: c, cantonTariff,
+        federal: data.federal, deductionsData: data.deductions,
       });
-      if (r != null) out.push(r);
+      if (r != null) rate.set(+bfsId, r);
     }
-    out.sort((a, b) => a - b);
-    if (!out.length) return null;
-    const lo = out[Math.floor(out.length * 0.02)];
-    const hi = out[Math.floor(out.length * 0.98)];
-    return { lo, hi };
-  }, [data, params]);
+    const vals = [...rate.values()].filter(v => v > 0).sort((a, b) => a - b);
+    const rateLo = vals.length ? vals[Math.floor(vals.length * 0.02)] : 0;
+    const rateHi = vals.length ? vals[Math.floor(vals.length * 0.98)] : 0;
 
-  function tooltipStyle(h) {
-    const offX = 18, offY = 18;
-    const W = 220, H = 130;
-    const rect = h.containerRect;
-    let left = h.point.x + offX;
-    let top  = h.point.y + offY;
-    if (rect && left + W > rect.width)  left = h.point.x - W - offX;
-    if (rect && top + H > rect.height)  top  = h.point.y - H - offY;
-    if (left < 0) left = 0;
-    if (top  < 0) top  = 0;
-    return { left, top };
-  }
+    // Delta map
+    const byCanton = {};
+    for (const bfsId of Object.keys(data.communes)) {
+      const c = data.communes[bfsId];
+      (byCanton[c.c] ||= []).push(c.co);
+    }
+    const avg = {};
+    for (const k of Object.keys(byCanton))
+      avg[k] = byCanton[k].reduce((s, x) => s + x, 0) / byCanton[k].length;
+    const delta = new Map();
+    for (const bfsId of Object.keys(data.communes)) {
+      const c = data.communes[bfsId];
+      delta.set(+bfsId, c.co - avg[c.c]);
+    }
+    const dvals = [...delta.values()].sort((a, b) => a - b);
+    const lo = dvals[Math.floor(dvals.length * 0.02)] ?? 0;
+    const hi = dvals[Math.floor(dvals.length * 0.98)] ?? 0;
+    const m = Math.max(Math.abs(lo), Math.abs(hi));
+    return {
+      rateByBfs: rate, rateLo, rateHi,
+      deltaByBfs: delta, deltaLo: -m, deltaHi: m,
+      avgByCanton: avg,
+    };
+  }, [data, params]) || {};
+
+  // Which commune does the tooltip describe?
+  //  hover takes precedence; otherwise fall back to selected.
+  const tooltipBfs = hover?.bfsId ?? selectedBfsId;
+  const tooltipKind = hover ? 'hover' : 'selected';
+  const tooltipCommune = tooltipBfs ? data.communes[tooltipBfs] : null;
+
+  const tooltipRate  = tooltipBfs != null ? rateByBfs?.get(tooltipBfs) : null;
+  const tooltipDelta = tooltipBfs != null ? deltaByBfs?.get(tooltipBfs) : null;
+  const tooltipAvg   = tooltipCommune ? avgByCanton?.[tooltipCommune.c] : null;
 
   return (
     <div className="map-card">
       <div className="map-header">
-        <h3>Tax burden by commune</h3>
+        <h3>
+          {viewMode === 'source-delta'
+            ? 'Commune tax vs at-source average'
+            : 'Tax burden by commune'}
+        </h3>
         <div className="map-sub">
-          Effective rate at <strong>{formatCHF(params.income)}</strong>{' '}
-          {params.incomeMode === 'taxable' ? 'taxable' : 'gross'} income
-          {' · '}
-          <span style={{ color: '#86efac' }}>● low</span>{' '}
-          <span style={{ color: '#fde047' }}>● mid</span>{' '}
-          <span style={{ color: '#fca5a5' }}>● high</span>
+          {viewMode === 'source-delta'
+            ? <>Commune multiplier compared to canton average (used for Quellensteuer / at-source taxation). <span style={{ color: '#86efac' }}>● below avg</span> · <span style={{ color: '#fca5a5' }}>● above avg</span></>
+            : <>Effective rate at <strong>{formatCHF(params.income)}</strong>{' '}
+               {params.incomeMode === 'taxable' ? 'taxable' : 'gross'} income · <span style={{ color: '#86efac' }}>● low</span>{' '}<span style={{ color: '#fde047' }}>● mid</span>{' '}<span style={{ color: '#fca5a5' }}>● high</span></>}
         </div>
       </div>
+
+      {setViewMode && (
+        <div className="map-mode-toggle">
+          <button className={`pill ${viewMode === 'effective' ? 'active' : ''}`}
+                  onClick={() => setViewMode('effective')}>
+            Effective rate
+          </button>
+          <button className={`pill ${viewMode === 'source-delta' ? 'active' : ''}`}
+                  onClick={() => setViewMode('source-delta')}
+                  title="Quellensteuer: commune multiplier vs canton average">
+            At-source delta
+          </button>
+        </div>
+      )}
+
       <div className="map-wrap" id="map-wrap">
         <MapContainer
           center={CH_CENTER}
@@ -259,52 +315,84 @@ export default function SwissMap({
         >
           <MapBody
             data={data} params={params}
+            viewMode={viewMode}
             selectedBfsId={selectedBfsId}
-            onSelect={onSelect}
             comparedBfsIds={comparedBfsIds}
-            onHover={(h) => setHover((cur) => {
-              if (typeof h === 'function') return h(cur);
-              if (!h) return null;
-              // attach container rect for tooltip clamping
-              const wrap = document.getElementById('map-wrap');
-              const r = wrap?.getBoundingClientRect();
-              return { ...h, containerRect: r ? { width: r.width, height: r.height } : null };
-            })}
+            setHover={setHover}
+            onSelect={onSelect}
           />
         </MapContainer>
 
-        {hover && hover.commune && hover.point && (
-          <div className="map-tooltip" style={tooltipStyle(hover)}>
-            <div className="tt-title">{hover.commune.n}</div>
-            <div className="tt-sub">{hover.commune.c}</div>
-            <div className="tt-row">
-              <span>Effective rate</span>
-              <strong>{hover.rate != null ? formatPct(hover.rate, 1) : '—'}</strong>
+        {tooltipCommune && (
+          <div className={`map-tooltip pinned ${tooltipKind}`}>
+            <div className="tt-title">
+              {tooltipCommune.n}
+              <span className="canton-chip">{tooltipCommune.c}</span>
+              {tooltipKind === 'selected' && <span className="tt-badge">selected</span>}
             </div>
-            <div className="tt-row"><span>Canton mult.</span><strong>{hover.commune.ca}%</strong></div>
-            <div className="tt-row"><span>Commune mult.</span><strong>{hover.commune.co}%</strong></div>
-            <div className="tt-hint">Click to select</div>
+            {viewMode === 'source-delta' ? (
+              <>
+                <div className="tt-row">
+                  <span>Commune mult.</span>
+                  <strong>{tooltipCommune.co}%</strong>
+                </div>
+                <div className="tt-row">
+                  <span>Canton avg.</span>
+                  <strong>{tooltipAvg != null ? tooltipAvg.toFixed(1) + '%' : '—'}</strong>
+                </div>
+                <div className="tt-row">
+                  <span>Δ vs avg</span>
+                  <strong style={{ color: tooltipDelta > 0 ? '#fca5a5' : tooltipDelta < 0 ? '#86efac' : 'inherit' }}>
+                    {tooltipDelta != null
+                      ? (tooltipDelta > 0 ? '+' : '') + tooltipDelta.toFixed(1) + 'pp'
+                      : '—'}
+                  </strong>
+                </div>
+                <div className="tt-hint">
+                  Negative = cheaper than at-source · positive = a top-up bill at year-end
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="tt-row">
+                  <span>Effective rate</span>
+                  <strong>{tooltipRate != null ? formatPct(tooltipRate, 2) : '—'}</strong>
+                </div>
+                <div className="tt-row"><span>Canton mult.</span><strong>{tooltipCommune.ca}%</strong></div>
+                <div className="tt-row"><span>Commune mult.</span><strong>{tooltipCommune.co}%</strong></div>
+              </>
+            )}
           </div>
         )}
       </div>
-      {legend && <Legend lo={legend.lo} hi={legend.hi} />}
+
+      <Legend
+        lo={viewMode === 'source-delta' ? deltaLo : rateLo}
+        hi={viewMode === 'source-delta' ? deltaHi : rateHi}
+        mode={viewMode}
+      />
     </div>
   );
 }
 
-function Legend({ lo, hi }) {
+function Legend({ lo, hi, mode }) {
+  if (lo == null || hi == null) return null;
   const stops = 12;
   const scale = scaleSequential(t => interpolateRdYlGn(1 - t)).domain([lo, hi]);
-  const colors = Array.from({ length: stops }, (_, i) => scale(lo + (hi - lo) * (i / (stops - 1))));
+  const colors = Array.from({ length: stops }, (_, i) =>
+    scale(lo + (hi - lo) * (i / (stops - 1))));
+  const fmt = (v) => mode === 'source-delta'
+    ? (v > 0 ? '+' : '') + v.toFixed(1) + 'pp'
+    : formatPct(v, 1);
   return (
     <div className="legend">
       <div className="legend-bar">
         {colors.map((c, i) => <div key={i} style={{ background: c, flex: 1 }} />)}
       </div>
       <div className="legend-labels">
-        <span>{formatPct(lo, 1)}</span>
-        <span>{formatPct((lo + hi) / 2, 1)}</span>
-        <span>{formatPct(hi, 1)}</span>
+        <span>{fmt(lo)}</span>
+        <span>{fmt((lo + hi) / 2)}</span>
+        <span>{fmt(hi)}</span>
       </div>
     </div>
   );

@@ -316,12 +316,33 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 12px;
-  min-width: 200px;
+  min-width: 220px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-  z-index: 10;
+  z-index: 1000;
 }
 .map-tooltip * { pointer-events: none; user-select: none; }
-.tt-title { font-weight: 700; font-size: 14px; }
+/* Pinned top-right tooltip */
+.map-tooltip.pinned { top: 12px; right: 12px; max-width: 260px; }
+.map-tooltip.pinned.selected { border-color: #facc15; }
+.map-tooltip.pinned.hover { border-color: #22d3ee; }
+.tt-badge {
+  background: rgba(250, 204, 21, 0.15); color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  border-radius: 4px; font-size: 9px; padding: 1px 5px;
+  letter-spacing: 0.5px; text-transform: uppercase; margin-left: 4px;
+}
+.map-mode-toggle {
+  display: flex; gap: 4px; padding: 3px;
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 8px; margin: 0 0 10px;
+  width: fit-content;
+}
+.map-mode-toggle .pill { border: none; padding: 6px 12px; }
+.tt-title {
+  font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+}
 .tt-sub   { color: var(--text-dim); font-size: 11px; margin-bottom: 6px; }
 .tt-row   { display: flex; justify-content: space-between; padding: 1px 0; }
 .tt-hint  { color: var(--text-dim); font-size: 10px; margin-top: 6px; font-style: italic; }

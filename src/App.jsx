@@ -34,6 +34,7 @@ export default function App() {
   const [comparedBfsIds, setComparedBfsIds] = useState([]);
   const [maxIncome, setMaxIncome] = useState(250000);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [viewMode, setViewMode] = useState('effective'); // | 'source-delta'
 
   function toggleCompare(bfsId) {
     setComparedBfsIds((cur) =>
@@ -122,6 +123,8 @@ export default function App() {
             selectedBfsId={selectedBfsId}
             onSelect={setSelectedBfsId}
             comparedBfsIds={comparedBfsIds}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
           />
           {comparedBfsIds.length > 0 && (
             <ComparisonPanel
