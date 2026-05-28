@@ -40,8 +40,12 @@ export default function ComparisonPanel({
           {rows.map((r) => (
             <div key={r.bfs} className="cmp-cell cmp-head">
               <div className="cmp-name">
-                <button className="cmp-name-link" onClick={() => onSelect && onSelect(r.bfs)}
-                        title="Show on map">
+                <button className="cmp-name-link"
+                        onClick={() => {
+                          if (onSelect) onSelect(r.bfs);
+                          if (r !== reference && onSetReference) onSetReference(r.bfs);
+                        }}
+                        title={r === reference ? 'Focus on map' : 'Make reference & focus'}>
                   <strong>{r.commune.n}</strong>
                 </button>
                 <span className="canton-chip">{r.commune.c}</span>

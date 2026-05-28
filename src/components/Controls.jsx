@@ -24,7 +24,7 @@ function NumberField({ label, value, onChange, hint, step = 100, disabled }) {
 
 export default function Controls({
   state, set, maxIncome, setMaxIncome, communes, selectedBfsId, onSelect,
-  onCompare, comparedBfsIds = [],
+  onCompare, onSetReference, comparedBfsIds = [], compareTotals = [],
   showAdvanced, setShowAdvanced,
 }) {
   const [search, setSearch] = useState('');
@@ -116,21 +116,6 @@ export default function Controls({
 
       <div className="control-block">
         <label>Commune</label>
-        <div className="selected-commune">
-          {selectedCommune
-            ? <>
-                <strong>{selectedCommune.n}</strong>
-                <span className="canton-chip">{selectedCommune.c}</span>
-                {onCompare && (
-                  <button
-                    className={`compare-btn ${isInCompare ? 'in-compare' : ''}`}
-                    onClick={() => onCompare(selectedBfsId)}
-                    title={isInCompare ? 'Remove from comparison' : 'Add to comparison'}
-                  >{isInCompare ? '−' : '+'} compare</button>
-                )}
-              </>
-            : <span className="muted">Click on the map to select</span>}
-        </div>
         <input
           type="text"
           placeholder='Search "Ecublens, VD" · "Zürich" · "Zuerich"…'
@@ -158,32 +143,68 @@ export default function Controls({
         {search && matches.length === 0 && (
           <div className="search-count muted">No commune matches</div>
         )}
+        <div className="selected-commune">
+          {selectedCommune
+            ? <>
+                <strong>{selectedCommune.n}</strong>
+                <span className="canton-chip">{selectedCommune.c}</span>
+                {onCompare && (
+                  <button
+                    className={`compare-btn ${isInCompare ? 'in-compare' : ''}`}
+                    onClick={() => onCompare(selectedBfsId)}
+                    title={isInCompare ? 'Remove from comparison' : 'Add to comparison'}
+                  >{isInCompare ? '−' : '+'} compare</button>
+                )}
+              </>
+            : <span className="muted">Click on the map to select</span>}
+        </div>
       </div>
 
       {comparedBfsIds.length > 0 && (
         <div className="control-block">
           <label>In comparison ({comparedBfsIds.length})</label>
           <div className="compare-list">
-            {comparedBfsIds.map((bfs, i) => {
-              const c = communes[bfs];
-              if (!c) return null;
+            {compareTotals.map((row, i) => {
+              const refTotal = compareTotals[0]?.total ?? 0;
+              const diff = row.total - refTotal;
+              const isRef = i === 0;
+              const diffCls = diff < 0 ? 'savings-good' : diff > 0 ? 'savings-bad' : 'savings-zero';
               return (
-                <div key={bfs} className={`compare-row ${i === 0 ? 'is-ref' : ''}`}>
+                <div key={row.bfs} className={`compare-row ${isRef ? 'is-ref' : ''}`}>
                   <button className="compare-row-pick"
-                          onClick={() => onSelect(bfs)}
-                          title="Show on map">
-                    {i === 0 && <span className="ref-marker">★</span>}
-                    <span>{c.n}</span>
-                    <span className="canton-chip">{c.c}</span>
+                          onClick={() => {
+                            onSelect(row.bfs);
+                            if (onSetReference) onSetReference(row.bfs);
+                          }}
+                          title={isRef ? 'Reference (click to focus)' : 'Use as savings reference'}>
+                    {isRef ? <span className="ref-marker">★</span> : <span className="ref-marker-empty">☆</span>}
+                    <span className="cmp-row-name">{row.commune.n}</span>
+                    <span className="canton-chip">{row.commune.c}</span>
+                    <span className={`compare-row-diff ${isRef ? '' : diffCls}`}>
+                      {isRef
+                        ? <span className="muted">reference</span>
+                        : (
+                          <>
+                            <div className="cmp-row-amt">
+                              {diff > 0 ? '+' : diff < 0 ? '−' : ''}
+                              {formatCHF(Math.abs(diff))}/yr
+                            </div>
+                            <div className="cmp-row-mo">
+                              {diff > 0 ? '+' : diff < 0 ? '−' : ''}
+                              {formatCHF(Math.abs(diff) / 12)}/mo
+                            </div>
+                          </>
+                        )}
+                    </span>
                   </button>
                   <button className="compare-row-x"
-                          onClick={() => onCompare && onCompare(bfs)}
+                          onClick={() => onCompare && onCompare(row.bfs)}
                           title="Remove from comparison">×</button>
                 </div>
               );
             })}
           </div>
-          <div className="hint">★ = reference for savings · click name to focus on map</div>
+          <div className="hint">★ = reference · click any row to make it the reference &amp; focus the map</div>
         </div>
       )}
 

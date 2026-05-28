@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadData } from './data/loader.js';
-import { computeTaxes, marginalRate } from './utils/taxCalculations.js';
+import { computeTaxes, marginalRate, formatCHF } from './utils/taxCalculations.js';
 import SwissMap from './components/SwissMap.jsx';
 import Controls from './components/Controls.jsx';
 import Breakdown from './components/Breakdown.jsx';
@@ -75,6 +75,24 @@ export default function App() {
     [computeArgs],
   );
 
+  // Pre-compute totals for every compared commune (used by the sidebar's
+  // compare-list AND the comparison panel — keeps both in sync).
+  const compareTotals = useMemo(() => {
+    if (!data) return [];
+    return comparedBfsIds.map((bfs) => {
+      const c = data.communes[bfs];
+      if (!c) return null;
+      const r = computeTaxes({
+        ...state,
+        commune: c,
+        cantonTariff: data.cantons[c.c],
+        federal: data.federal,
+        deductionsData: data.deductions,
+      });
+      return { bfs, commune: c, total: r.total };
+    }).filter(Boolean);
+  }, [comparedBfsIds, data, state]);
+
   if (error) {
     return <div className="loader error">Failed to load data: {String(error)}</div>;
   }
@@ -110,7 +128,9 @@ export default function App() {
             selectedBfsId={selectedBfsId}
             onSelect={setSelectedBfsId}
             onCompare={toggleCompare}
+            onSetReference={setCompareReference}
             comparedBfsIds={comparedBfsIds}
+            compareTotals={compareTotals}
             showAdvanced={showAdvanced}
             setShowAdvanced={setShowAdvanced}
           />

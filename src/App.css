@@ -193,14 +193,27 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
 }
 .compare-row.is-ref { background: rgba(34, 211, 238, 0.10); }
 .compare-row-pick {
-  flex: 1; display: flex; align-items: center; gap: 6px;
+  flex: 1; display: grid;
+  grid-template-columns: 16px 1fr auto auto;
+  align-items: center; gap: 6px;
   background: transparent; color: var(--text);
   border: none; font: inherit; font-size: 13px;
   text-align: left; padding: 6px 8px; cursor: pointer;
   border-radius: 6px;
 }
 .compare-row-pick:hover { background: var(--panel-2); }
-.compare-row-pick .ref-marker { color: var(--good); }
+.compare-row-pick .ref-marker { color: var(--good); font-size: 14px; line-height: 1; }
+.compare-row-pick .ref-marker-empty { color: var(--text-dim); font-size: 14px; line-height: 1; }
+.cmp-row-name { font-weight: 500; }
+.compare-row-diff {
+  text-align: right; font-variant-numeric: tabular-nums;
+  margin-left: 8px;
+}
+.compare-row-diff .cmp-row-amt { font-size: 12px; font-weight: 600; }
+.compare-row-diff .cmp-row-mo  { font-size: 10px; color: var(--text-dim); }
+.savings-good .cmp-row-amt { color: var(--good); }
+.savings-bad  .cmp-row-amt { color: var(--accent-soft); }
+.savings-zero .cmp-row-amt { color: var(--text-dim); }
 .compare-row-x {
   background: transparent; color: var(--text-dim);
   border: none; padding: 4px 8px; font-size: 14px; cursor: pointer;
