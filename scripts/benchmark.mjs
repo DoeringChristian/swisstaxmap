@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// Cross-canton benchmark. Runs the calculator at standard income points
+// for the capital (or major city) of every canton, so the numbers can be
+// spot-checked against swisstaxmap.ch / ESTV.
+
 import fs from 'node:fs';
 import { computeTaxes } from '../src/utils/taxCalculations.js';
 
@@ -7,64 +11,115 @@ const cantons   = JSON.parse(fs.readFileSync('public/data/cantons.json')).canton
 const communes  = JSON.parse(fs.readFileSync('public/data/communes.json')).communes;
 const deductions = JSON.parse(fs.readFileSync('public/data/deductions.json'));
 
-const fmt = (v) => Math.round(v).toLocaleString('de-CH').padStart(9);
-const pct = (v) => (v*100).toFixed(2).padStart(6) + '%';
+const fmt = (v) => Math.round(v).toLocaleString('de-CH').padStart(7);
+const pct = (v) => (v * 100).toFixed(2).padStart(6) + '%';
 
-function run(income, bfsId, opts) {
+const lookup = (name, canton) => {
+  // Try exact match; then try "Name (CANTON)" suffix that several communes have
+  // when names collide between cantons (e.g. "Altdorf (UR)", "Ecublens (VD)").
+  for (const [bfs, c] of Object.entries(communes))
+    if (c.n === name && (!canton || c.c === canton)) return +bfs;
+  const suffixed = `${name} (${canton})`;
+  for (const [bfs, c] of Object.entries(communes))
+    if (c.n === suffixed && c.c === canton) return +bfs;
+  return null;
+};
+
+// Canonical commune per canton — usually the capital, sometimes the biggest city.
+const ROSTER = [
+  ['ZH', lookup('Zürich', 'ZH'),   'Zürich (capital)'],
+  ['BE', lookup('Bern', 'BE'),     'Bern (capital)'],
+  ['LU', lookup('Luzern', 'LU'),   'Luzern (capital)'],
+  ['UR', lookup('Altdorf', 'UR'),  'Altdorf (capital)'],
+  ['SZ', lookup('Schwyz', 'SZ'),   'Schwyz (capital)'],
+  ['OW', lookup('Sarnen', 'OW'),   'Sarnen (capital)'],
+  ['NW', lookup('Stans', 'NW'),    'Stans (capital)'],
+  ['GL', lookup('Glarus', 'GL'),   'Glarus (capital)'],
+  ['ZG', lookup('Zug', 'ZG'),      'Zug (capital, low-tax)'],
+  ['FR', lookup('Fribourg', 'FR'), 'Fribourg (capital)'],
+  ['SO', lookup('Solothurn', 'SO'), 'Solothurn (capital)'],
+  ['BS', lookup('Basel', 'BS'),    'Basel (capital)'],
+  ['BL', lookup('Liestal', 'BL'),  'Liestal (capital)'],
+  ['SH', lookup('Schaffhausen', 'SH'), 'Schaffhausen (capital)'],
+  ['AR', lookup('Herisau', 'AR'),  'Herisau (capital)'],
+  ['AI', lookup('Appenzell', 'AI'), 'Appenzell (capital)'],
+  ['SG', lookup('St. Gallen', 'SG'), 'St. Gallen (capital)'],
+  ['GR', lookup('Chur', 'GR'),     'Chur (capital)'],
+  ['AG', lookup('Aarau', 'AG'),    'Aarau (capital)'],
+  ['TG', lookup('Frauenfeld', 'TG'), 'Frauenfeld (capital)'],
+  ['TI', lookup('Bellinzona', 'TI'), 'Bellinzona (capital)'],
+  ['VD', lookup('Lausanne', 'VD'), 'Lausanne (capital)'],
+  ['VS', lookup('Sion', 'VS'),     'Sion (capital)'],
+  ['NE', lookup('Neuchâtel', 'NE'), 'Neuchâtel (capital)'],
+  ['GE', lookup('Genève', 'GE'),   'Genève (capital)'],
+  ['JU', lookup('Delémont', 'JU'), 'Delémont (capital)'],
+];
+
+function run(income, bfsId, opts = {}) {
   const commune = communes[bfsId];
   if (!commune) return null;
   return computeTaxes({
     income, incomeMode: opts.incomeMode || 'gross',
     commune, cantonTariff: cantons[commune.c], federal,
     deductionsData: deductions,
-    married: opts.married || false,
-    children: opts.children || 0,
+    married: opts.married || false, children: opts.children || 0,
     confession: opts.confession || 'none',
-    pillar2: opts.pillar2 ?? 5000,
-    pillar3a: opts.pillar3a || 0,
-    travelExpenses: opts.travelExpenses || 0,
+    pillar2: opts.pillar2 ?? 0,
+    pillar3a: opts.pillar3a ?? 0,
+    travelExpenses: opts.travelExpenses ?? 0,
+    rent: opts.rent ?? 0,
+    savingsInterest: opts.savingsInterest ?? 0,
   });
 }
 
-const lookup = (name) => {
-  for (const [bfs, c] of Object.entries(communes)) if (c.n === name) return +bfs;
-  return null;
-};
-const benchmarks = [
-  ['Zürich',         lookup('Zürich')],
-  ['Bern',           lookup('Bern')],
-  ['Zug',            lookup('Zug')],
-  ['Basel',          lookup('Basel')],
-  ['Lausanne',       lookup('Lausanne')],
-  ['Genève',         lookup('Genève')],
-  ['Lugano',         lookup('Lugano')],
-  ['Obergoms (VS)',  lookup('Obergoms')],
-  ['Sion',           lookup('Sion')],
-];
-
-function printCases(title, opts) {
-  console.log(`\n=== ${title} ===`);
-  console.log('Commune'.padEnd(18) + 'Fed-Tax'.padStart(10) + 'Can-Tax'.padStart(10) +
-              ' | Federal'.padStart(10) + 'Cantonal'.padStart(10) +
-              ' Commune'.padStart(10) + '  Church'.padStart(9) +
-              '   TOTAL'.padStart(11) + '   eff');
-  console.log('-'.repeat(105));
-  for (const [name, bfs] of benchmarks) {
-    const r = run(100000, bfs, opts);
-    if (!r) { console.log(name.padEnd(18), 'MISSING'); continue; }
+function printTable(title, income, opts) {
+  console.log(`\n${'='.repeat(86)}`);
+  console.log(`  ${title} — gross CHF ${income.toLocaleString('de-CH')}`);
+  console.log('='.repeat(86));
+  console.log(
+    'Canton'.padEnd(5) +
+    'Commune'.padEnd(28) +
+    'Federal'.padStart(8) +
+    ' Cantonal'.padStart(9) +
+    '  Commune'.padStart(9) +
+    '   TOTAL'.padStart(10) +
+    '   eff'.padStart(9)
+  );
+  console.log('-'.repeat(86));
+  for (const [code, bfs, label] of ROSTER) {
+    if (!bfs) { console.log(`${code.padEnd(5)}${label.padEnd(28)}  (commune lookup failed)`); continue; }
+    const r = run(income, bfs, opts);
+    if (!r) { console.log(`${code.padEnd(5)}${label.padEnd(28)}  ERR`); continue; }
     console.log(
-      name.padEnd(18) +
-      fmt(r.taxableFederal) + fmt(r.taxableCantonal) + ' |' +
-      fmt(r.federal) + fmt(r.cantonal) +
-      fmt(r.commune) + fmt(r.church) +
-      fmt(r.total) + '  ' + pct(r.effectiveRate)
+      code.padEnd(5) +
+      label.padEnd(28) +
+      fmt(r.federal) + ' ' +
+      fmt(r.cantonal) + ' ' +
+      fmt(r.commune) + ' ' +
+      fmt(r.total) + '  ' +
+      pct(r.effectiveRate)
     );
   }
 }
 
-printCases('CHF 100k GROSS · single · pillar2=5000', { incomeMode: 'gross' });
-printCases('CHF 100k GROSS · single · pillar2=7000 · 3a=7258 · travel=2000',
-  { incomeMode: 'gross', pillar2: 7000, pillar3a: 7258, travelExpenses: 2000 });
+const cases = [
+  [50000,  { married: false }, 'Single, no kids, no church, BVG=0'],
+  [80000,  { married: false }, 'Single, no kids, no church, BVG=0'],
+  [100000, { married: false }, 'Single, no kids, no church, BVG=0'],
+  [150000, { married: true, children: 2 }, 'Married + 2 kids, no church, BVG=0'],
+  [200000, { married: false }, 'Single, no kids, no church, BVG=0'],
+];
 
-console.log('\nReference (swisstaxmap.ch, Obergoms VS, age 30, single, no kids, 100k gross):');
-console.log('  federal 1813   cantonal 6967   commune 7664   total 16444 (16.44%)');
+console.log('\nAll figures are GROSS income → tax model with default deductions');
+console.log('(BVG=0, no rent, no Sparzinsen). Real per-canton match needs ');
+console.log('canton-specific inputs (especially rent for VD/ZG, BVG for everyone).');
+
+for (const [income, opts, label] of cases) {
+  printTable(label, income, opts);
+}
+
+console.log('\nReference single-line spot-checks (you-vs-swisstaxmap):');
+console.log('  Ecublens VD 50k, BVG=0:');
+const r = run(50000, lookup('Ecublens (VD)', 'VD'), {});
+console.log(`    mine: federal ${r.federal.toFixed(0)}, cantonal ${r.cantonal.toFixed(0)}, commune ${r.commune.toFixed(0)}`);
+console.log(`    swisstaxmap reference: federal 217, cantonal 2619, commune 1056`);
