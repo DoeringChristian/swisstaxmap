@@ -221,7 +221,8 @@ export function computeTaxes({
   // Detailed deduction inputs (gross mode only)
   pillar2 = 0, partnerPillar2 = 0, pillar3a = 0,
   travelExpenses = 0, mealCosts = 0, sideExpenses = 0,
-  insurance, insuranceKids, childcareCosts = 0,
+  insurance, insuranceKids, savingsInterest = 0, rent = 0,
+  childcareCosts = 0,
   debtInterest = 0, maintenanceCostsRealEstate = 0,
   otherDeductions = 0,
   overrideCantonRate, overrideCommuneRate, overrideChurchRate,
@@ -239,7 +240,8 @@ export function computeTaxes({
       partnerIncome: married ? partnerIncome : 0,
       married, children, pillar2, partnerPillar2, pillar3a,
       travelExpenses, mealCosts, sideExpenses,
-      insurance, insuranceKids, childcareCosts,
+      insurance, insuranceKids, savingsInterest, rent,
+      childcareCosts,
       debtInterest, maintenanceCostsRealEstate, otherDeductions,
     }, cantonTable, federalTable);
     taxableFed = result.taxableFederal;
@@ -309,7 +311,7 @@ export function fastEffectiveRate({
   married, partnerIncome = 0, confession = 'none', children = 0,
   pillar2 = 0, partnerPillar2 = 0, pillar3a = 0,
   travelExpenses = 0, mealCosts = 0, sideExpenses = 0,
-  insurance, insuranceKids, childcareCosts = 0,
+  insurance, insuranceKids, savingsInterest = 0, rent = 0, childcareCosts = 0,
   debtInterest = 0, maintenanceCostsRealEstate = 0, otherDeductions = 0,
 }) {
   if (!commune || !cantonTariff || income <= 0) return null;
@@ -323,7 +325,7 @@ export function fastEffectiveRate({
       gross: income, partnerIncome: married ? partnerIncome : 0,
       married, children, pillar2, partnerPillar2, pillar3a,
       travelExpenses, mealCosts, sideExpenses,
-      insurance, insuranceKids, childcareCosts,
+      insurance, insuranceKids, savingsInterest, rent, childcareCosts,
       debtInterest, maintenanceCostsRealEstate, otherDeductions,
     }, cantonTable, federalTable);
     taxFed = r.taxableFederal; taxCan = r.taxableCantonal;

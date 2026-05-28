@@ -91,21 +91,58 @@ const DEDUCTIONS = [
   },
   {
     label: 'Versicherungsprämien (single)',
-    ids: ['KKSparLedigMitBVGS3a_EK', 'KKSparLedigOhneBVGS3a_EK'],
+    // Most cantons use "KKSpar…" (DE/CH); VD/GE-style cantons use "KKPrivVers…".
+    ids: ['KKSparLedigMitBVGS3a_EK', 'KKSparLedigOhneBVGS3a_EK', 'KKPrivVersLedig_EK'],
     rule: (t) => !t.married,
     input: (t) => ({ amount: t.insurance ?? 4560 }),
   },
   {
     label: 'Versicherungsprämien (married)',
-    ids: ['KKSparzVerhMitBVGS3a_EK', 'KKSparVerhOhneBVGS3a_EK'],
+    ids: ['KKSparzVerhMitBVGS3a_EK', 'KKSparVerhOhneBVGS3a_EK', 'KKPrivVersVerheiratet_EK'],
     rule: (t) => t.married,
     input: (t) => ({ amount: (t.insurance ?? 4560) * 2 }),
   },
   {
     label: 'Versicherungsprämien Kinder',
-    ids: ['KKSparProKind_EK'],
+    ids: ['KKSparProKind_EK', 'KKPrivVersProKind_EK'],
     rule: (t) => t.children > 0,
     input: (t) => ({ amount: t.insuranceKids ?? 1400, multiplier: t.children }),
+  },
+  {
+    label: 'Sparzinsen (single)',
+    ids: ['SparzinsenLedig_EK'],
+    rule: (t) => !t.married,
+    input: (t) => ({ amount: t.savingsInterest ?? 0 }),
+  },
+  {
+    label: 'Sparzinsen (married)',
+    ids: ['SparzinsenVerheiratet_EK'],
+    rule: (t) => t.married,
+    input: (t) => ({ amount: (t.savingsInterest ?? 0) * 2 }),
+  },
+  {
+    label: 'Sparzinsen Kinder',
+    ids: ['SparzinsenProKind_EK'],
+    rule: (t) => t.children > 0,
+    input: (t) => ({ amount: t.savingsInterestKids ?? 0, multiplier: t.children }),
+  },
+  {
+    label: 'Mietzinsabzug (Pauschal, single)',
+    ids: ['AbzMietePauschalLedig_EK'],
+    rule: (t) => !t.married,
+    input: (t) => ({ amount: t.rent ?? 0 }),
+  },
+  {
+    label: 'Mietzinsabzug (Pauschal, married)',
+    ids: ['AbzMietePauschalVerheiratet_EK'],
+    rule: (t) => t.married,
+    input: (t) => ({ amount: t.rent ?? 0 }),
+  },
+  {
+    label: 'Mietzinsabzug Kinder',
+    ids: ['AbzMietePauschalKind_EK'],
+    rule: (t) => t.children > 0,
+    input: (t) => ({ amount: (t.rent ?? 0) / Math.max(1, t.children), multiplier: t.children }),
   },
   {
     label: 'Sozialabzug Verheiratet',

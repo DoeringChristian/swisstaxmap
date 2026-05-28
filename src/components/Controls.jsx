@@ -310,6 +310,20 @@ export default function Controls({
                 hint="Annual workplace meal costs"
                 step={100}
               />
+              <NumberField
+                label="Rent (Mietzins)"
+                value={state.rent}
+                onChange={(v) => set({ rent: v })}
+                hint="Annual rent — applied via Mietzinsabzug (VD, ZG, …)"
+                step={500}
+              />
+              <NumberField
+                label="Savings interest"
+                value={state.savingsInterest}
+                onChange={(v) => set({ savingsInterest: v })}
+                hint="Annual savings interest income (Sparzinsen-Abzug, VD …)"
+                step={100}
+              />
               {state.children > 0 && (
                 <NumberField
                   label="Childcare (Fremdbetreuung)"

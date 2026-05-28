@@ -27,6 +27,8 @@ export default function App() {
     pillar3a: 0,                  // Pillar 3a
     travelExpenses: 0,
     mealCosts: 0,
+    savingsInterest: 0,           // for cantons with Sparzinsen-Abzug (VD…)
+    rent: 0,                      // for cantons with Mietzinsabzug Pauschal (VD…)
     childcareCosts: 0,
     otherDeductions: 0,
   });
