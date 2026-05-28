@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { feature } from 'topojson-client';
 import { MapContainer, TileLayer, GeoJSON, useMap, Pane } from 'react-leaflet';
 import L from 'leaflet';
@@ -10,6 +10,9 @@ import { fastEffectiveRate, formatPct, formatCHF } from '../utils/taxCalculation
 const CH_CENTER = [46.82, 8.23];
 const CH_INITIAL_ZOOM = 8;
 const CH_BOUNDS = [[45.8, 5.9], [47.85, 10.55]];
+
+const STYLE_CANTON = { color: '#1f2937', weight: 1.4, fill: false, opacity: 0.85 };
+const STYLE_LAKES  = { fillColor: '#0ea5e9', fillOpacity: 0.15, color: '#0284c7', weight: 0.6 };
 
 // Style helper that returns the leaflet style options for a commune feature.
 function styleFor({ rate, colorScale, isSel, inCompare }) {
@@ -80,8 +83,28 @@ function MapBody({
 
   const compareSet = useMemo(() => new Set(comparedBfsIds), [comparedBfsIds]);
 
-  // Imperatively restyle commune features when rates/selection/compare change,
-  // without rebuilding the GeoJSON layer (2k features ⇒ rebuild is slow).
+  // Stable refs for current state used by the style function so the function
+  // identity stays the same (react-leaflet calls resetStyle on prop change —
+  // a fresh closure each render would wipe our colors back to grey).
+  const styleStateRef = useRef({ rateByBfs, colorScale, selectedBfsId, compareSet });
+  useEffect(() => {
+    styleStateRef.current = { rateByBfs, colorScale, selectedBfsId, compareSet };
+  });
+
+  // Stable style function used as the initial `style` prop — identity never
+  // changes, so react-leaflet never wipes our colors.
+  const styleMuni = useCallback((feature) => {
+    const { rateByBfs, colorScale, selectedBfsId, compareSet } = styleStateRef.current;
+    const bfsId = feature.id;
+    return styleFor({
+      rate: rateByBfs.get(bfsId),
+      colorScale,
+      isSel: bfsId === selectedBfsId,
+      inCompare: compareSet.has(bfsId),
+    });
+  }, []);
+
+  // Imperatively restyle commune features when rates/selection/compare change.
   useEffect(() => {
     const layer = muniLayerRef.current;
     if (!layer) return;
@@ -141,8 +164,7 @@ function MapBody({
           ref={muniLayerRef}
           data={muniGeoJSON}
           pane="muni"
-          style={() => ({ fillColor: '#94a3b8', fillOpacity: 0.62,
-                          color: '#0b0f17', weight: 0.4, opacity: 0.6 })}
+          style={styleMuni}
           onEachFeature={onEachMuni}
         />
       </Pane>
@@ -152,7 +174,7 @@ function MapBody({
           data={cantonGeoJSON}
           pane="cantons"
           interactive={false}
-          style={() => ({ color: '#1f2937', weight: 1.4, fill: false, opacity: 0.85 })}
+          style={STYLE_CANTON}
         />
       </Pane>
       {lakesGeoJSON && (
@@ -162,8 +184,7 @@ function MapBody({
             data={lakesGeoJSON}
             pane="lakes"
             interactive={false}
-            style={() => ({ fillColor: '#0ea5e9', fillOpacity: 0.15,
-                            color: '#0284c7', weight: 0.6 })}
+            style={STYLE_LAKES}
           />
         </Pane>
       )}

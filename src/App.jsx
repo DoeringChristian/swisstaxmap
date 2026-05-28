@@ -130,6 +130,7 @@ export default function App() {
               state={state}
               onRemove={removeFromCompare}
               onSetReference={setCompareReference}
+              onSelect={setSelectedBfsId}
             />
           )}
           <Breakdown result={result} marginal={m} commune={commune} />

@@ -169,12 +169,56 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
   letter-spacing: 0.5px;
 }
 .search-input { width: 100%; }
+.search-count { font-size: 11px; color: var(--text-dim); padding: 2px 4px; }
 .search-results {
   display: flex; flex-direction: column; gap: 2px;
   margin-top: 4px;
   border: 1px solid var(--border);
   border-radius: 8px; overflow: hidden;
   background: var(--bg-2);
+}
+.search-results.scrollable { max-height: 280px; overflow-y: auto; }
+.search-results.scrollable::-webkit-scrollbar { width: 6px; }
+.search-results.scrollable::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+/* Compared-communes list in the left sidebar */
+.compare-list {
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 4px;
+}
+.compare-row {
+  display: flex; align-items: center; gap: 4px;
+  border-radius: 6px; padding: 2px;
+}
+.compare-row.is-ref { background: rgba(34, 211, 238, 0.10); }
+.compare-row-pick {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  background: transparent; color: var(--text);
+  border: none; font: inherit; font-size: 13px;
+  text-align: left; padding: 6px 8px; cursor: pointer;
+  border-radius: 6px;
+}
+.compare-row-pick:hover { background: var(--panel-2); }
+.compare-row-pick .ref-marker { color: var(--good); }
+.compare-row-x {
+  background: transparent; color: var(--text-dim);
+  border: none; padding: 4px 8px; font-size: 14px; cursor: pointer;
+  border-radius: 4px;
+}
+.compare-row-x:hover { color: var(--accent-soft); background: var(--panel-2); }
+
+/* Comparison panel cell hover */
+.cmp-name-link {
+  background: transparent; border: none; color: inherit; padding: 0;
+  font: inherit; cursor: pointer;
+}
+.cmp-name-link:hover strong { color: var(--accent-soft); }
+.cmp-ref-badge {
+  background: rgba(34, 211, 238, 0.15); color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  border-radius: 4px; font-size: 9px;
+  padding: 1px 4px; letter-spacing: 0.5px; text-transform: uppercase;
 }
 .search-row {
   text-align: left; padding: 8px 12px; cursor: pointer;

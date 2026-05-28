@@ -107,7 +107,7 @@ function score(commune, tokens) {
   return total;
 }
 
-export function searchCommunes(query, communes, limit = 8) {
+export function searchCommunes(query, communes, limit = Infinity) {
   if (!query || !query.trim()) return [];
   // Tokenize on whitespace AND commas (so "Ecublens, VD" still works).
   const tokens = query
@@ -122,5 +122,5 @@ export function searchCommunes(query, communes, limit = 8) {
     if (s > 0) out.push({ bfs, c, score: s });
   }
   out.sort((a, b) => b.score - a.score || a.c.n.localeCompare(b.c.n, 'de-CH'));
-  return out.slice(0, limit);
+  return limit === Infinity ? out : out.slice(0, limit);
 }

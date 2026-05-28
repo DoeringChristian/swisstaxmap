@@ -37,7 +37,7 @@ export default function Controls({
   const isInCompare = comparedBfsIds.includes(selectedBfsId);
 
   const matches = useMemo(
-    () => searchCommunes(search, communes, 8),
+    () => searchCommunes(search, communes),
     [search, communes],
   );
 
@@ -139,20 +139,53 @@ export default function Controls({
           className="search-input"
         />
         {matches.length > 0 && (
-          <div className="search-results">
-            {matches.map(({ bfs, c }) => (
-              <button
-                key={bfs}
-                className="search-row"
-                onClick={() => { onSelect(+bfs); setSearch(''); }}
-              >
-                <span>{c.n}</span>
-                <span className="canton-chip">{c.c}</span>
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="search-count">{matches.length} match{matches.length === 1 ? '' : 'es'}</div>
+            <div className="search-results scrollable">
+              {matches.map(({ bfs, c }) => (
+                <button
+                  key={bfs}
+                  className="search-row"
+                  onClick={() => { onSelect(+bfs); setSearch(''); }}
+                >
+                  <span>{c.n}</span>
+                  <span className="canton-chip">{c.c}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {search && matches.length === 0 && (
+          <div className="search-count muted">No commune matches</div>
         )}
       </div>
+
+      {comparedBfsIds.length > 0 && (
+        <div className="control-block">
+          <label>In comparison ({comparedBfsIds.length})</label>
+          <div className="compare-list">
+            {comparedBfsIds.map((bfs, i) => {
+              const c = communes[bfs];
+              if (!c) return null;
+              return (
+                <div key={bfs} className={`compare-row ${i === 0 ? 'is-ref' : ''}`}>
+                  <button className="compare-row-pick"
+                          onClick={() => onSelect(bfs)}
+                          title="Show on map">
+                    {i === 0 && <span className="ref-marker">★</span>}
+                    <span>{c.n}</span>
+                    <span className="canton-chip">{c.c}</span>
+                  </button>
+                  <button className="compare-row-x"
+                          onClick={() => onCompare && onCompare(bfs)}
+                          title="Remove from comparison">×</button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="hint">★ = reference for savings · click name to focus on map</div>
+        </div>
+      )}
 
       <div className="control-block toggles">
         <label className="toggle">

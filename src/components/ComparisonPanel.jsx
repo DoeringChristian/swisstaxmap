@@ -1,20 +1,22 @@
 import { useMemo } from 'react';
-import { computeTaxes, formatCHF, formatPct } from '../utils/taxCalculations.js';
+import { computeTaxes, marginalRate, formatCHF, formatPct } from '../utils/taxCalculations.js';
 
 export default function ComparisonPanel({
-  comparedBfsIds, data, state, onRemove, onSetReference,
+  comparedBfsIds, data, state, onRemove, onSetReference, onSelect,
 }) {
   const rows = useMemo(() => {
     return comparedBfsIds.map((bfs) => {
       const commune = data.communes[bfs];
       if (!commune) return null;
       const cantonTariff = data.cantons[commune.c];
-      const r = computeTaxes({
+      const args = {
         ...state,
         commune, cantonTariff,
         federal: data.federal, deductionsData: data.deductions,
-      });
-      return { bfs, commune, result: r };
+      };
+      const r = computeTaxes(args);
+      const mr = marginalRate(args);
+      return { bfs, commune, result: r, marginal: mr };
     }).filter(Boolean);
   }, [comparedBfsIds, data, state]);
 
@@ -38,8 +40,12 @@ export default function ComparisonPanel({
           {rows.map((r) => (
             <div key={r.bfs} className="cmp-cell cmp-head">
               <div className="cmp-name">
-                <strong>{r.commune.n}</strong>
+                <button className="cmp-name-link" onClick={() => onSelect && onSelect(r.bfs)}
+                        title="Show on map">
+                  <strong>{r.commune.n}</strong>
+                </button>
                 <span className="canton-chip">{r.commune.c}</span>
+                {r === reference && <span className="cmp-ref-badge">ref</span>}
               </div>
               <div className="cmp-actions">
                 {r !== reference && (
@@ -108,10 +114,72 @@ export default function ComparisonPanel({
         </div>
 
         <div className="cmp-row">
-          <div className="cmp-label">Multipliers (Ca / Co)</div>
+          <div className="cmp-label">Marginal rate</div>
+          {rows.map((r) => (
+            <div key={r.bfs} className="cmp-cell">
+              <div className="cmp-amount">{formatPct(r.marginal)}</div>
+              <div className="cmp-mo">on next 1'000</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="cmp-row">
+          <div className="cmp-label">Net (after taxes &amp; social)</div>
+          {rows.map((r) => (
+            <div key={r.bfs} className="cmp-cell">
+              <div className="cmp-amount">{formatCHF(r.result.net)}</div>
+              <div className="cmp-mo">{formatCHF(r.result.net / 12)} / mo</div>
+            </div>
+          ))}
+        </div>
+
+        {state.incomeMode === 'gross' && (
+          <>
+            <div className="cmp-row">
+              <div className="cmp-label">Social contributions</div>
+              {rows.map((r) => (
+                <div key={r.bfs} className="cmp-cell">
+                  <div className="cmp-amount">{formatCHF(r.result.socialContributions)}</div>
+                  <div className="cmp-mo">{formatCHF(r.result.socialContributions / 12)} / mo</div>
+                </div>
+              ))}
+            </div>
+            {rows.some(r => r.result.bvg > 0) && (
+              <div className="cmp-row">
+                <div className="cmp-label">Pillar 2 (BVG)</div>
+                {rows.map((r) => (
+                  <div key={r.bfs} className="cmp-cell">
+                    <div className="cmp-amount">{formatCHF(r.result.bvg)}</div>
+                    <div className="cmp-mo">{formatCHF(r.result.bvg / 12)} / mo</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="cmp-row">
+          <div className="cmp-label">Taxable (federal)</div>
           {rows.map((r) => (
             <div key={r.bfs} className="cmp-cell cmp-faint">
-              {r.commune.ca}% / {r.commune.co}%
+              {formatCHF(r.result.taxableFederal)}
+            </div>
+          ))}
+        </div>
+        <div className="cmp-row">
+          <div className="cmp-label">Taxable (cantonal)</div>
+          {rows.map((r) => (
+            <div key={r.bfs} className="cmp-cell cmp-faint">
+              {formatCHF(r.result.taxableCantonal)}
+            </div>
+          ))}
+        </div>
+
+        <div className="cmp-row">
+          <div className="cmp-label">Multipliers (Ca / Co / Ch)</div>
+          {rows.map((r) => (
+            <div key={r.bfs} className="cmp-cell cmp-faint">
+              {r.commune.ca}% / {r.commune.co}% / {r.result.churchRate || 0}%
             </div>
           ))}
         </div>
