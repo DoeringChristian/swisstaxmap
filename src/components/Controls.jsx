@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { formatCHF } from '../utils/taxCalculations.js';
+import { searchCommunes } from '../utils/search.js';
 
 const CONFESSIONS = [
   { id: 'none',              label: 'None' },
@@ -23,37 +24,59 @@ function NumberField({ label, value, onChange, hint, step = 100, disabled }) {
 
 export default function Controls({
   state, set, maxIncome, setMaxIncome, communes, selectedBfsId, onSelect,
+  onCompare, comparedBfsIds = [],
   showAdvanced, setShowAdvanced,
 }) {
   const [search, setSearch] = useState('');
+  const [editingIncome, setEditingIncome] = useState(false);
+  const [incomeDraft, setIncomeDraft] = useState('');
+  const incomeInputRef = useRef(null);
 
   const selectedCommune = selectedBfsId ? communes[selectedBfsId] : null;
   const gross = state.incomeMode === 'gross';
+  const isInCompare = comparedBfsIds.includes(selectedBfsId);
 
-  const matches = useMemo(() => {
-    if (!search) return [];
-    const q = search.toLowerCase();
-    const list = [];
-    for (const [bfs, c] of Object.entries(communes)) {
-      if (c.n.toLowerCase().startsWith(q)) list.push({ bfs, c });
-      if (list.length >= 8) break;
-    }
-    if (list.length < 8) {
-      for (const [bfs, c] of Object.entries(communes)) {
-        if (list.find(x => x.bfs === bfs)) continue;
-        if (c.n.toLowerCase().includes(q)) list.push({ bfs, c });
-        if (list.length >= 8) break;
-      }
-    }
-    return list;
-  }, [search, communes]);
+  const matches = useMemo(
+    () => searchCommunes(search, communes, 8),
+    [search, communes],
+  );
+
+  function commitIncome() {
+    const v = +incomeDraft.replace(/[^\d]/g, '');
+    if (!isNaN(v) && v >= 0) set({ income: Math.min(v, maxIncome) });
+    setEditingIncome(false);
+  }
+  function startEditIncome() {
+    setIncomeDraft(String(state.income));
+    setEditingIncome(true);
+    setTimeout(() => incomeInputRef.current?.select(), 0);
+  }
 
   return (
     <div className="controls-card">
       <div className="control-block">
         <div className="control-header">
           <label htmlFor="income">{gross ? 'Gross income' : 'Taxable income'}</label>
-          <div className="income-value">{formatCHF(state.income)}</div>
+          {editingIncome ? (
+            <input
+              ref={incomeInputRef}
+              type="text" inputMode="numeric"
+              className="income-input"
+              value={incomeDraft}
+              onChange={(e) => setIncomeDraft(e.target.value)}
+              onBlur={commitIncome}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitIncome();
+                if (e.key === 'Escape') setEditingIncome(false);
+              }}
+              autoFocus
+            />
+          ) : (
+            <button className="income-value" onClick={startEditIncome}
+                    title="Click to type a value">
+              {formatCHF(state.income)}
+            </button>
+          )}
         </div>
         <input
           id="income"
@@ -98,11 +121,19 @@ export default function Controls({
             ? <>
                 <strong>{selectedCommune.n}</strong>
                 <span className="canton-chip">{selectedCommune.c}</span>
+                {onCompare && (
+                  <button
+                    className={`compare-btn ${isInCompare ? 'in-compare' : ''}`}
+                    onClick={() => onCompare(selectedBfsId)}
+                    title={isInCompare ? 'Remove from comparison' : 'Add to comparison'}
+                  >{isInCompare ? '−' : '+'} compare</button>
+                )}
               </>
             : <span className="muted">Click on the map to select</span>}
         </div>
         <input
-          type="text" placeholder="Search for commune…"
+          type="text"
+          placeholder='Search "Ecublens, VD" · "Zürich" · "Zuerich"…'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="search-input"

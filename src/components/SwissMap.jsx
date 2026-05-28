@@ -11,8 +11,9 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 20;
 
 export default function SwissMap({
-  data, params, selectedBfsId, onSelect,
+  data, params, selectedBfsId, onSelect, comparedBfsIds = [],
 }) {
+  const compareSet = useMemo(() => new Set(comparedBfsIds), [comparedBfsIds]);
   const { topo, communes, cantons, federal } = data;
 
   const { mun, cant, lakes, country, path } = useMemo(() => {
@@ -223,14 +224,17 @@ export default function SwissMap({
                 const bfsId = g.id;
                 const rate = rateByBfs.get(bfsId);
                 const isSel = bfsId === selectedBfsId;
+                const inCompare = compareSet.has(bfsId);
                 const fill = rate == null ? '#2a3140' : colorScale(rate);
+                const stroke = isSel ? '#facc15' : inCompare ? '#22d3ee' : '#0b0f17';
+                const sw = isSel ? selStroke : inCompare ? selStroke * 0.8 : baseStroke;
                 return (
                   <path
                     key={bfsId}
                     d={path(g)}
                     fill={fill}
-                    stroke={isSel ? '#facc15' : '#0b0f17'}
-                    strokeWidth={isSel ? selStroke : baseStroke}
+                    stroke={stroke}
+                    strokeWidth={sw}
                     onMouseMove={(e) => onPathMove(bfsId, e)}
                     onMouseEnter={(e) => onPathMove(bfsId, e)}
                     onClick={() => {

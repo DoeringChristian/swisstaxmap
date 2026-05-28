@@ -6,6 +6,7 @@ import Controls from './components/Controls.jsx';
 import Breakdown from './components/Breakdown.jsx';
 import TaxChart from './components/TaxChart.jsx';
 import RateChart from './components/RateChart.jsx';
+import ComparisonPanel from './components/ComparisonPanel.jsx';
 import './App.css';
 
 const DEFAULT_BFS = 261; // City of Zürich
@@ -30,8 +31,24 @@ export default function App() {
     otherDeductions: 0,
   });
   const [selectedBfsId, setSelectedBfsId] = useState(DEFAULT_BFS);
+  const [comparedBfsIds, setComparedBfsIds] = useState([]);
   const [maxIncome, setMaxIncome] = useState(250000);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  function toggleCompare(bfsId) {
+    setComparedBfsIds((cur) =>
+      cur.includes(bfsId) ? cur.filter((b) => b !== bfsId) : [...cur, bfsId]
+    );
+  }
+  function removeFromCompare(bfsId) {
+    setComparedBfsIds((cur) => cur.filter((b) => b !== bfsId));
+  }
+  function setCompareReference(bfsId) {
+    setComparedBfsIds((cur) => {
+      if (!cur.includes(bfsId)) return cur;
+      return [bfsId, ...cur.filter((b) => b !== bfsId)];
+    });
+  }
 
   useEffect(() => {
     loadData().then(setData).catch(setError);
@@ -91,6 +108,8 @@ export default function App() {
             communes={data.communes}
             selectedBfsId={selectedBfsId}
             onSelect={setSelectedBfsId}
+            onCompare={toggleCompare}
+            comparedBfsIds={comparedBfsIds}
             showAdvanced={showAdvanced}
             setShowAdvanced={setShowAdvanced}
           />
@@ -102,7 +121,17 @@ export default function App() {
             params={state}
             selectedBfsId={selectedBfsId}
             onSelect={setSelectedBfsId}
+            comparedBfsIds={comparedBfsIds}
           />
+          {comparedBfsIds.length > 0 && (
+            <ComparisonPanel
+              comparedBfsIds={comparedBfsIds}
+              data={data}
+              state={state}
+              onRemove={removeFromCompare}
+              onSetReference={setCompareReference}
+            />
+          )}
           <Breakdown result={result} marginal={m} commune={commune} />
           {commune && (
             <TaxChart
