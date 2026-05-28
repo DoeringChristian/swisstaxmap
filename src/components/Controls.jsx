@@ -24,7 +24,8 @@ function NumberField({ label, value, onChange, hint, step = 100, disabled }) {
 
 export default function Controls({
   state, set, maxIncome, setMaxIncome, communes, selectedBfsId, onSelect,
-  onCompare, onSetReference, comparedBfsIds = [], compareTotals = [],
+  onCompare, onSetReference, comparedBfsIds = [], referenceBfsId = null,
+  compareTotals = [],
   showAdvanced, setShowAdvanced,
 }) {
   const [search, setSearch] = useState('');
@@ -164,38 +165,42 @@ export default function Controls({
         <div className="control-block">
           <label>In comparison ({comparedBfsIds.length})</label>
           <div className="compare-list">
-            {compareTotals.map((row, i) => {
-              const refTotal = compareTotals[0]?.total ?? 0;
+            {compareTotals.map((row) => {
+              const refTotal = compareTotals.find(r => r.bfs === referenceBfsId)?.total
+                              ?? compareTotals[0]?.total ?? 0;
               const diff = row.total - refTotal;
-              const isRef = i === 0;
+              const isRef = row.bfs === referenceBfsId;
               const diffCls = diff < 0 ? 'savings-good' : diff > 0 ? 'savings-bad' : 'savings-zero';
               return (
                 <div key={row.bfs} className={`compare-row ${isRef ? 'is-ref' : ''}`}>
+                  <button className={`ref-toggle ${isRef ? 'is-active' : ''}`}
+                          onClick={() => onSetReference && onSetReference(row.bfs)}
+                          title={isRef ? 'Reference for savings calculation' : 'Make this the reference'}>
+                    {isRef ? '★' : '☆'}
+                  </button>
                   <button className="compare-row-pick"
-                          onClick={() => {
-                            onSelect(row.bfs);
-                            if (onSetReference) onSetReference(row.bfs);
-                          }}
-                          title={isRef ? 'Reference (click to focus)' : 'Use as savings reference'}>
-                    {isRef ? <span className="ref-marker">★</span> : <span className="ref-marker-empty">☆</span>}
-                    <span className="cmp-row-name">{row.commune.n}</span>
-                    <span className="canton-chip">{row.commune.c}</span>
-                    <span className={`compare-row-diff ${isRef ? '' : diffCls}`}>
-                      {isRef
-                        ? <span className="muted">reference</span>
-                        : (
-                          <>
-                            <div className="cmp-row-amt">
-                              {diff > 0 ? '+' : diff < 0 ? '−' : ''}
-                              {formatCHF(Math.abs(diff))}/yr
-                            </div>
-                            <div className="cmp-row-mo">
-                              {diff > 0 ? '+' : diff < 0 ? '−' : ''}
-                              {formatCHF(Math.abs(diff) / 12)}/mo
-                            </div>
-                          </>
-                        )}
-                    </span>
+                          onClick={() => onSelect(row.bfs)}
+                          title="Show on map">
+                    <div className="cmp-row-name-line">
+                      <span className="cmp-row-name">{row.commune.n}</span>
+                      <span className="canton-chip">{row.commune.c}</span>
+                    </div>
+                    <div className={`compare-row-diff ${isRef ? '' : diffCls}`}>
+                      {isRef ? (
+                        <span className="muted">reference</span>
+                      ) : (
+                        <>
+                          <span className="cmp-row-amt">
+                            {diff > 0 ? '+' : diff < 0 ? '−' : ''}
+                            {formatCHF(Math.abs(diff))} / yr
+                          </span>
+                          <span className="cmp-row-mo">
+                            {diff > 0 ? '+' : diff < 0 ? '−' : ''}
+                            {formatCHF(Math.abs(diff) / 12)} / mo
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </button>
                   <button className="compare-row-x"
                           onClick={() => onCompare && onCompare(row.bfs)}
@@ -204,7 +209,7 @@ export default function Controls({
               );
             })}
           </div>
-          <div className="hint">★ = reference · click any row to make it the reference &amp; focus the map</div>
+          <div className="hint">★ sets the reference · click the name to focus on the map</div>
         </div>
       )}
 

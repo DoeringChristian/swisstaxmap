@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { computeTaxes, marginalRate, formatCHF, formatPct } from '../utils/taxCalculations.js';
 
 export default function ComparisonPanel({
-  comparedBfsIds, data, state, onRemove, onSetReference, onSelect,
+  comparedBfsIds, referenceBfsId, data, state, onRemove, onSetReference, onSelect,
 }) {
   const rows = useMemo(() => {
     return comparedBfsIds.map((bfs) => {
@@ -22,8 +22,8 @@ export default function ComparisonPanel({
 
   if (rows.length === 0) return null;
 
-  // Reference for savings = first entry (lowest tax burden visually highlighted too)
-  const reference = rows[0];
+  // Reference for savings — explicit prop, fall back to first row.
+  const reference = rows.find(r => r.bfs === referenceBfsId) || rows[0];
 
   // Find the absolute lowest total for the green highlight
   const minTotal = Math.min(...rows.map(r => r.result.total));
@@ -40,23 +40,19 @@ export default function ComparisonPanel({
           {rows.map((r) => (
             <div key={r.bfs} className="cmp-cell cmp-head">
               <div className="cmp-name">
+                <button className={`cmp-ref-star ${r === reference ? 'is-active' : ''}`}
+                        onClick={() => onSetReference && onSetReference(r.bfs)}
+                        title={r === reference ? 'Reference for savings' : 'Make reference'}>
+                  {r === reference ? '★' : '☆'}
+                </button>
                 <button className="cmp-name-link"
-                        onClick={() => {
-                          if (onSelect) onSelect(r.bfs);
-                          if (r !== reference && onSetReference) onSetReference(r.bfs);
-                        }}
-                        title={r === reference ? 'Focus on map' : 'Make reference & focus'}>
+                        onClick={() => onSelect && onSelect(r.bfs)}
+                        title="Focus on map">
                   <strong>{r.commune.n}</strong>
                 </button>
                 <span className="canton-chip">{r.commune.c}</span>
-                {r === reference && <span className="cmp-ref-badge">ref</span>}
               </div>
               <div className="cmp-actions">
-                {r !== reference && (
-                  <button className="cmp-link"
-                    onClick={() => onSetReference(r.bfs)}
-                    title="Use as savings reference">⤴ ref</button>
-                )}
                 <button className="cmp-x" onClick={() => onRemove(r.bfs)}
                         title="Remove from comparison">×</button>
               </div>

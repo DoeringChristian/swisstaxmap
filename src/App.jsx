@@ -32,23 +32,29 @@ export default function App() {
   });
   const [selectedBfsId, setSelectedBfsId] = useState(DEFAULT_BFS);
   const [comparedBfsIds, setComparedBfsIds] = useState([]);
+  const [referenceBfsId, setReferenceBfsId] = useState(null);
   const [maxIncome, setMaxIncome] = useState(250000);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [viewMode, setViewMode] = useState('effective'); // | 'source-delta'
 
   function toggleCompare(bfsId) {
-    setComparedBfsIds((cur) =>
-      cur.includes(bfsId) ? cur.filter((b) => b !== bfsId) : [...cur, bfsId]
-    );
+    setComparedBfsIds((cur) => {
+      if (cur.includes(bfsId)) {
+        const next = cur.filter((b) => b !== bfsId);
+        // If we removed the reference, fall back to the first remaining (if any).
+        setReferenceBfsId((ref) => ref === bfsId ? (next[0] ?? null) : ref);
+        return next;
+      }
+      // First commune added becomes the reference by default.
+      setReferenceBfsId((ref) => ref == null ? bfsId : ref);
+      return [...cur, bfsId];
+    });
   }
   function removeFromCompare(bfsId) {
-    setComparedBfsIds((cur) => cur.filter((b) => b !== bfsId));
+    toggleCompare(bfsId);
   }
   function setCompareReference(bfsId) {
-    setComparedBfsIds((cur) => {
-      if (!cur.includes(bfsId)) return cur;
-      return [bfsId, ...cur.filter((b) => b !== bfsId)];
-    });
+    if (comparedBfsIds.includes(bfsId)) setReferenceBfsId(bfsId);
   }
 
   useEffect(() => {
@@ -93,6 +99,9 @@ export default function App() {
     }).filter(Boolean);
   }, [comparedBfsIds, data, state]);
 
+  // Effective reference: explicit state, falling back to first in list.
+  const effectiveReferenceBfsId = referenceBfsId ?? comparedBfsIds[0] ?? null;
+
   if (error) {
     return <div className="loader error">Failed to load data: {String(error)}</div>;
   }
@@ -130,6 +139,7 @@ export default function App() {
             onCompare={toggleCompare}
             onSetReference={setCompareReference}
             comparedBfsIds={comparedBfsIds}
+            referenceBfsId={effectiveReferenceBfsId}
             compareTotals={compareTotals}
             showAdvanced={showAdvanced}
             setShowAdvanced={setShowAdvanced}
@@ -149,6 +159,7 @@ export default function App() {
           {comparedBfsIds.length > 0 && (
             <ComparisonPanel
               comparedBfsIds={comparedBfsIds}
+              referenceBfsId={effectiveReferenceBfsId}
               data={data}
               state={state}
               onRemove={removeFromCompare}

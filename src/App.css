@@ -188,31 +188,52 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
   border-radius: 10px; padding: 4px;
 }
 .compare-row {
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: stretch; gap: 4px;
   border-radius: 6px; padding: 2px;
 }
 .compare-row.is-ref { background: rgba(34, 211, 238, 0.10); }
+
+/* Standalone star button — sets reference. */
+.ref-toggle {
+  background: transparent; color: var(--text-dim);
+  border: none; padding: 0 8px;
+  font-size: 18px; line-height: 1; cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center;
+  transition: color 120ms ease;
+}
+.ref-toggle:hover { color: var(--text); background: var(--panel-2); }
+.ref-toggle.is-active { color: var(--good); }
+
 .compare-row-pick {
-  flex: 1; display: grid;
-  grid-template-columns: 16px 1fr auto auto;
-  align-items: center; gap: 6px;
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
   background: transparent; color: var(--text);
   border: none; font: inherit; font-size: 13px;
   text-align: left; padding: 6px 8px; cursor: pointer;
   border-radius: 6px;
 }
 .compare-row-pick:hover { background: var(--panel-2); }
-.compare-row-pick .ref-marker { color: var(--good); font-size: 14px; line-height: 1; }
-.compare-row-pick .ref-marker-empty { color: var(--text-dim); font-size: 14px; line-height: 1; }
-.cmp-row-name { font-weight: 500; }
+.cmp-row-name-line {
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0;
+}
+.cmp-row-name {
+  font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0;
+}
 .compare-row-diff {
-  text-align: right; font-variant-numeric: tabular-nums;
-  margin-left: 8px;
+  display: flex; align-items: baseline; gap: 8px;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
 }
 .compare-row-diff .cmp-row-amt { font-size: 12px; font-weight: 600; }
-.compare-row-diff .cmp-row-mo  { font-size: 10px; color: var(--text-dim); }
-.savings-good .cmp-row-amt { color: var(--good); }
-.savings-bad  .cmp-row-amt { color: var(--accent-soft); }
+.compare-row-diff .cmp-row-mo  { color: var(--text-dim); }
+.savings-good .cmp-row-amt,
+.savings-good .cmp-row-mo { color: var(--good); }
+.savings-bad  .cmp-row-amt,
+.savings-bad  .cmp-row-mo { color: var(--accent-soft); }
 .savings-zero .cmp-row-amt { color: var(--text-dim); }
 .compare-row-x {
   background: transparent; color: var(--text-dim);
@@ -227,6 +248,12 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
   font: inherit; cursor: pointer;
 }
 .cmp-name-link:hover strong { color: var(--accent-soft); }
+.cmp-ref-star {
+  background: transparent; border: none; color: var(--text-dim);
+  font-size: 16px; line-height: 1; padding: 0 4px; cursor: pointer;
+}
+.cmp-ref-star:hover { color: var(--text); }
+.cmp-ref-star.is-active { color: var(--good); }
 .cmp-ref-badge {
   background: rgba(34, 211, 238, 0.15); color: #22d3ee;
   border: 1px solid rgba(34, 211, 238, 0.4);
