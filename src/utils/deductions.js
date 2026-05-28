@@ -45,13 +45,22 @@ function applyInputAdjust(amount, input) {
   return a;
 }
 
-// Look up a deduction item by id, trying alternative ids if not found.
+// Look up a deduction item by id, trying alternative ids in priority order.
 function findItem(table, ids) {
+  if (!Array.isArray(ids)) return null;
   for (const id of ids) {
     const f = table.find(it => it.id === id);
     if (f) return f;
   }
   return null;
+}
+
+// "Has pension savings" => use the *MitBVGS3a* (lower-cap) insurance variant,
+// otherwise the *OhneBVGS3a* (higher-cap) one. Matches ESTV's logic where the
+// insurance deduction ceiling depends on whether the taxpayer also contributes
+// to pillar 2 / pillar 3a.
+function hasPensionSavings(t) {
+  return (t.pillar2 || 0) > 0 || (t.partnerPillar2 || 0) > 0 || (t.pillar3a || 0) > 0;
 }
 
 // Deduction definitions.
@@ -92,13 +101,18 @@ const DEDUCTIONS = [
   {
     label: 'Versicherungsprämien (single)',
     // Most cantons use "KKSpar…" (DE/CH); VD/GE-style cantons use "KKPrivVers…".
-    ids: ['KKSparLedigMitBVGS3a_EK', 'KKSparLedigOhneBVGS3a_EK', 'KKPrivVersLedig_EK'],
+    // Variant priority depends on whether the taxpayer has BVG/3a savings.
+    ids: (t) => hasPensionSavings(t)
+      ? ['KKSparLedigMitBVGS3a_EK', 'KKSparLedigOhneBVGS3a_EK', 'KKPrivVersLedig_EK']
+      : ['KKSparLedigOhneBVGS3a_EK', 'KKSparLedigMitBVGS3a_EK', 'KKPrivVersLedig_EK'],
     rule: (t) => !t.married,
     input: (t) => ({ amount: t.insurance ?? 4560 }),
   },
   {
     label: 'Versicherungsprämien (married)',
-    ids: ['KKSparzVerhMitBVGS3a_EK', 'KKSparVerhOhneBVGS3a_EK', 'KKPrivVersVerheiratet_EK'],
+    ids: (t) => hasPensionSavings(t)
+      ? ['KKSparzVerhMitBVGS3a_EK', 'KKSparVerhOhneBVGS3a_EK', 'KKPrivVersVerheiratet_EK']
+      : ['KKSparVerhOhneBVGS3a_EK', 'KKSparzVerhMitBVGS3a_EK', 'KKPrivVersVerheiratet_EK'],
     rule: (t) => t.married,
     input: (t) => ({ amount: (t.insurance ?? 4560) * 2 }),
   },
@@ -222,9 +236,11 @@ export function computeDeductions(taxInput, cantonTable, federalTable) {
   for (const def of DEDUCTIONS) {
     if (def.rule && !def.rule(ctx)) continue;
     const inputObj = def.input(ctx);
+    // `ids` may be a static list or a function that returns one based on input.
+    const ids = typeof def.ids === 'function' ? def.ids(ctx) : def.ids;
 
-    const cantonItem  = findItem(cantonTable,  def.ids);
-    const federalItem = findItem(federalTable, def.ids);
+    const cantonItem  = findItem(cantonTable,  ids);
+    const federalItem = findItem(federalTable, ids);
     if (!cantonItem && !federalItem && !def.applyAlways) continue;
 
     let amtCanton, amtFederal;
@@ -241,7 +257,7 @@ export function computeDeductions(taxInput, cantonTable, federalTable) {
 
     if (amtCanton > 0 || amtFederal > 0) {
       items.push({
-        id: def.ids[0],
+        id: ids[0],
         label: def.label,
         canton: amtCanton,
         federal: amtFederal,

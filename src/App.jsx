@@ -22,7 +22,7 @@ export default function App() {
     children: 0,
     confession: 'none',
     // Deduction inputs (gross mode)
-    pillar2: 2500,                // BVG / Pillar 2 contribution (typical for age 30)
+    pillar2: 0,                   // BVG / Pillar 2 contribution — user-entered
     partnerPillar2: 0,
     pillar3a: 0,                  // Pillar 3a
     travelExpenses: 0,
