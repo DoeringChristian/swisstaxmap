@@ -234,9 +234,9 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
 .map-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
 .map-card h3 { margin: 0; font-size: 16px; }
 .map-sub { font-size: 12px; color: var(--text-dim); }
-.map-wrap { position: relative; }
+.map-wrap { position: relative; user-select: none; -webkit-user-select: none; }
 .map-tooltip {
-  position: absolute; pointer-events: none;
+  position: absolute; pointer-events: none; user-select: none;
   background: rgba(11, 15, 23, 0.96);
   border: 1px solid #334155;
   border-radius: 10px;
@@ -246,6 +246,7 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
   box-shadow: 0 8px 24px rgba(0,0,0,0.45);
   z-index: 10;
 }
+.map-tooltip * { pointer-events: none; user-select: none; }
 .tt-title { font-weight: 700; font-size: 14px; }
 .tt-sub   { color: var(--text-dim); font-size: 11px; margin-bottom: 6px; }
 .tt-row   { display: flex; justify-content: space-between; padding: 1px 0; }

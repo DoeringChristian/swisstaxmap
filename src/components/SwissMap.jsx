@@ -91,46 +91,43 @@ export default function SwissMap({
     });
   }
 
-  function onPointerDown(e) {
-    if (e.button !== 0) return;
-    dragRef.current = {
-      startX: e.clientX, startY: e.clientY,
-      origTx: view.tx, origTy: view.ty,
-      moved: false,
-    };
-    svgRef.current?.setPointerCapture?.(e.pointerId);
-  }
-  function onPointerMove(e) {
-    const drag = dragRef.current;
-    if (!drag) {
-      handleHover(e);
-      return;
-    }
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      drag.moved = true;
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const sx = WIDTH / rect.width;
-      const sy = HEIGHT / rect.height;
-      const targetTx = drag.origTx + dx * sx;
-      const targetTy = drag.origTy + dy * sy;
-      setView((v) => clampView({ ...v, tx: targetTx, ty: targetTy }));
-      setHover(null);
-    }
-  }
-  function onPointerUp(e) {
-    if (!dragRef.current) return;
-    const wasDrag = dragRef.current.moved;
-    dragRef.current = null;
-    svgRef.current?.releasePointerCapture?.(e.pointerId);
-    if (wasDrag) {
-      // suppress click after drag — handled by setting a flag the path onClick checks
-      lastDragRef.current = Date.now();
-    }
-  }
   const lastDragRef = useRef(0);
+
+  function onMouseDown(e) {
+    if (e.button !== 0) return;
+    const startX = e.clientX, startY = e.clientY;
+    const origTx = view.tx, origTy = view.ty;
+    let moved = false;
+
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+        moved = true;
+        dragRef.current = true; // signal "currently dragging"
+        setHover(null);
+      }
+      if (moved) {
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const sx = WIDTH / rect.width;
+        const sy = HEIGHT / rect.height;
+        const targetTx = origTx + dx * sx;
+        const targetTy = origTy + dy * sy;
+        setView((v) => clampView({ ...v, tx: targetTx, ty: targetTy }));
+      }
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      if (moved) {
+        dragRef.current = false;
+        lastDragRef.current = Date.now();
+      }
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
 
   function resetView() { setView({ k: 1, tx: 0, ty: 0 }); }
   function zoomIn()  { setView((v) => clampView({ ...v, k: v.k * 1.5 })); }
@@ -148,15 +145,8 @@ export default function SwissMap({
   // -------- tooltip --------
   const [hover, setHover] = useState(null); // { bfsId, x, y }
 
-  function handleHover(e) {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setHover((h) => h ? { ...h, x, y } : null);
-  }
-
-  function onPathEnter(bfsId, e) {
+  function onPathMove(bfsId, e) {
+    if (dragRef.current) return;
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     setHover({
@@ -221,13 +211,10 @@ export default function SwissMap({
           preserveAspectRatio="xMidYMid meet"
           style={{
             width: '100%', height: 'auto', display: 'block',
-            cursor: dragRef.current ? 'grabbing' : 'grab',
-            touchAction: 'none',
+            cursor: 'grab', touchAction: 'none',
           }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={() => setHover(null)}
+          onMouseDown={onMouseDown}
+          onMouseLeave={() => setHover(null)}
         >
           <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
             <path d={path(country)} fill="#1c2333" stroke="none" />
@@ -244,9 +231,9 @@ export default function SwissMap({
                     fill={fill}
                     stroke={isSel ? '#facc15' : '#0b0f17'}
                     strokeWidth={isSel ? selStroke : baseStroke}
-                    onMouseMove={(e) => onPathEnter(bfsId, e)}
+                    onMouseMove={(e) => onPathMove(bfsId, e)}
+                    onMouseEnter={(e) => onPathMove(bfsId, e)}
                     onClick={() => {
-                      // Suppress click that follows a drag.
                       if (Date.now() - lastDragRef.current < 200) return;
                       onSelect(bfsId);
                     }}

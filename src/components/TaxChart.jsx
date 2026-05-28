@@ -61,7 +61,14 @@ export default function TaxChart({ params, commune, cantonTariff, federal, deduc
             formatter={(value, name) => [formatCHF(value), name]}
           />
           <Legend />
-          <ReferenceLine x={params.income} stroke="#facc15" strokeDasharray="4 4" label={{ value: 'You', fill: '#facc15', position: 'top' }} />
+          <ReferenceLine
+            x={params.income} stroke="#facc15" strokeDasharray="4 4"
+            label={{
+              value: 'You',
+              fill: '#facc15',
+              fontSize: 12,
+              position: params.income > maxIncome * 0.85 ? 'insideTopLeft' : 'insideTopRight',
+            }} />
           <Area type="monotone" dataKey="federal"  stackId="1" stroke="#dc2626" fill="url(#g-fed)" name="Federal" />
           <Area type="monotone" dataKey="cantonal" stackId="1" stroke="#2563eb" fill="url(#g-can)" name="Cantonal" />
           <Area type="monotone" dataKey="commune"  stackId="1" stroke="#16a34a" fill="url(#g-com)" name="Commune" />

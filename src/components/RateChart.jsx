@@ -71,7 +71,14 @@ export default function RateChart({ params, commune, cantonTariff, federal, dedu
             formatter={(value, name) => [`${(+value).toFixed(2)}%`, name]}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <ReferenceLine x={params.income} stroke="#facc15" strokeDasharray="4 4" />
+          <ReferenceLine
+            x={params.income} stroke="#facc15" strokeDasharray="4 4"
+            label={{
+              value: 'You',
+              fill: '#facc15',
+              fontSize: 12,
+              position: params.income > maxIncome * 0.85 ? 'insideTopLeft' : 'insideTopRight',
+            }} />
 
           <Line type="monotone" dataKey="eff_total"    stroke={COLORS.total} strokeWidth={2.5} dot={false} name="Total (effective)" />
           <Line type="monotone" dataKey="mar_total"    stroke={COLORS.total} strokeDasharray="5 5" strokeWidth={2} dot={false} name="Total (marginal)" />
