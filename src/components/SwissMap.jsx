@@ -310,7 +310,8 @@ export default function SwissMap({
           maxBoundsViscosity={0.7}
           preferCanvas={true}
           scrollWheelZoom={true}
-          style={{ height: 520, width: '100%', borderRadius: 12 }}
+          className="map-leaflet"
+          style={{ width: '100%', borderRadius: 12 }}
           attributionControl={true}
         >
           <MapBody

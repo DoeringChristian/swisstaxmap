@@ -56,7 +56,9 @@ body {
 .grid {
   display: grid; grid-template-columns: 320px 1fr; gap: 24px;
 }
-@media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+
+/* Leaflet container (replaces the previous inline 520px height) */
+.map-leaflet { height: 520px; }
 
 .controls-card,
 .breakdown-card,
@@ -494,3 +496,76 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1p
 .app-footer strong { color: var(--text); }
 .app-footer a { color: var(--accent-soft); text-decoration: none; }
 .app-footer a:hover { text-decoration: underline; }
+
+/* ===========================================================
+   Responsive — tablet (≤1100px) and phone (≤700px / ≤480px)
+   =========================================================== */
+
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; }
+  .app { padding: 18px; }
+}
+
+@media (max-width: 700px) {
+  .app { padding: 12px; }
+  .app-header {
+    flex-wrap: wrap; gap: 12px;
+    padding: 8px 0 16px; margin-bottom: 16px;
+  }
+  .title h1 { font-size: 18px; letter-spacing: -0.2px; }
+  .title p  { font-size: 12px; }
+  .logo { width: 44px; height: 44px; font-size: 14px; }
+  .canton-badge { padding: 6px 10px; }
+
+  /* Cards */
+  .controls-card, .breakdown-card, .chart-card, .map-card, .comparison-card {
+    padding: 14px; border-radius: 12px;
+  }
+  .right { gap: 16px; }
+
+  /* Map: shorter on phones; native Leaflet pinch/zoom + drag still work */
+  .map-leaflet { height: 380px; }
+  .map-card { padding: 12px; }
+  .map-header { flex-wrap: wrap; gap: 4px; }
+  .map-card h3 { font-size: 14px; }
+  .map-sub { font-size: 11px; }
+  .map-mode-toggle { width: 100%; }
+  .map-mode-toggle .pill { flex: 1; padding: 8px 10px; }
+  .map-tooltip.pinned { top: 8px; right: 8px; max-width: 200px; padding: 8px 10px; font-size: 11px; min-width: 160px; }
+  .tt-title { font-size: 12px; }
+
+  /* Totals: stack vertically on phones, larger touch */
+  .totals { grid-template-columns: 1fr; gap: 8px; }
+  .totals > div { padding: 12px; }
+  .totals-value { font-size: 20px; }
+  .breakdown-card .row { padding: 8px 0; }
+
+  /* Deduction list: tighter columns */
+  .ded-header, .ded-row, .ded-total { grid-template-columns: 1fr 80px 80px; font-size: 11px; }
+
+  /* Comparison: horizontal scroll if many columns (fixed-width cols force overflow) */
+  .comparison-grid { -webkit-overflow-scrolling: touch; }
+  .cmp-row { grid-template-columns: 130px repeat(var(--cols), 130px); min-width: max-content; }
+  .cmp-label { font-size: 12px; position: sticky; left: 0; background: linear-gradient(90deg, var(--panel) 80%, transparent); padding-right: 4px; z-index: 1; }
+  .cmp-amount { font-size: 13px; }
+
+  /* Charts a bit shorter so the page isn't all chart */
+  .recharts-responsive-container { min-height: 240px; }
+
+  /* Compare-list rows in sidebar: keep name visible */
+  .cmp-row-name { max-width: 100%; }
+
+  /* Footer */
+  .app-footer { font-size: 11px; }
+}
+
+@media (max-width: 480px) {
+  .map-leaflet { height: 340px; }
+  .app-header {
+    flex-direction: column; align-items: flex-start;
+  }
+  .canton-badge { margin-left: 0; align-self: stretch; }
+  /* Confession pills: 4 columns are awkward on the narrowest phones, force 2 */
+  .confession-row { grid-template-columns: 1fr 1fr; }
+  .confession-row .pill { font-size: 11px; padding: 8px 6px; }
+}
